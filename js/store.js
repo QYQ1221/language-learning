@@ -386,11 +386,14 @@
       return true;
     },
 
-    /** 关闭 GitHub 同步，切回本地。 */
+    /** 关闭 GitHub 同步，切回本地。同时清除本地保存的 Token/同步码（云端 Gist 不删，下次需重填才能重新同步）。 */
     disableGist() {
       if (this._gistUnsub) { try { this._gistUnsub(); } catch (e) {} this._gistUnsub = null; }
       this.useAdapter(LocalAdapter);
       this._gistEnabled = false;
+      this.state.settings.gistToken = '';
+      this.state.settings.gistKey = '';
+      this.commit();
       return true;
     },
 

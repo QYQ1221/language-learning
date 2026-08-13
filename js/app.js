@@ -1804,9 +1804,11 @@
               gistHint.textContent = '请填写 GitHub Token（仅 gist 权限），按回车连接';
               gistHint.style.color = '';
             } else {
-              s.gistSync = false; Store.commit();
-              Store.disableGist();
-              gistHint.textContent = '未开启';
+              s.gistSync = false;
+              Store.disableGist();   // 内部已清空 gistToken/gistKey 并 commit
+              if (gToken) gToken.value = '';
+              if (gKey) gKey.value = '';
+              gistHint.textContent = '未开启（已清除 Token，重新开启需重填）';
               gistHint.style.color = '';
             }
           });
