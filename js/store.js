@@ -160,7 +160,7 @@
         });
         if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error('HTTP ' + res.status + ' ' + t.slice(0, 120)); }
         return true;
-      } catch (e) { console.warn('[GistAdapter] 保存失败', e); return false; }
+      } catch (e) { this.error = e && e.message ? e.message : String(e); console.warn('[GistAdapter] 保存失败', e); return false; }
     },
 
     // 创建新 Gist（首次开启且未提供同步码时调用），返回 gist id
@@ -336,10 +336,12 @@
       token = (token || '').trim();
       key = (key || '').trim();
       if (!token) { this._gistError = '缺少 GitHub Token'; return false; }
+      let isNew = false;
       if (!key) {
         const created = await GistAdapter.create(token, this.state);
         if (!created) { this._gistError = GistAdapter.error || '创建 Gist 失败'; return false; }
         key = created;
+        isNew = true;
         this.state.settings.gistKey = key;
         this.state.settings.gistToken = token;
         this.commit();
@@ -347,15 +349,31 @@
       const ok = await GistAdapter.init({ token, key });
       if (!ok) { this._gistError = GistAdapter.error; return false; }
       this.useAdapter(GistAdapter);
-      const remote = await GistAdapter.load();
-      if (remote && typeof remote === 'object') {
-        this.state = this._mergeForCloud(remote);
-        this._migrate();
-        this.commit();
+      if (isNew) {
+        // 新建的 Gist 内容为空，必须先把本地数据上传，否则下次读取空内容会覆盖本地
+        const okSave = await GistAdapter.save(this.state);
+        if (!okSave) {
+          this._gistError = '写入 Gist 失败（多半是 Token 没有 gist 权限）：' + (GistAdapter.error || '');
+          this.useAdapter(LocalAdapter);
+          return false;
+        }
         this._mirrorLocal();
       } else {
-        await GistAdapter.save(this.state);
-        this._mirrorLocal();
+        const remote = await GistAdapter.load();
+        if (remote && typeof remote === 'object') {
+          this.state = this._mergeForCloud(remote);
+          this._migrate();
+          this.commit();
+          this._mirrorLocal();
+        } else {
+          const okSave = await GistAdapter.save(this.state);
+          if (!okSave) {
+            this._gistError = '写入 Gist 失败（同步码对应的 Gist 不存在，或 Token 无 gist 权限）：' + (GistAdapter.error || '');
+            this.useAdapter(LocalAdapter);
+            return false;
+          }
+          this._mirrorLocal();
+        }
       }
       if (this._gistUnsub) { try { this._gistUnsub(); } catch (e) {} }
       this._gistUnsub = GistAdapter.subscribe((remoteState) => {
