@@ -149,9 +149,17 @@
       } catch (e) { console.warn('[GistAdapter] 读取失败', e); return null; }
     },
 
+    // 上传到 Gist 前剥离 Token 等敏感字段，避免把凭证明文写进 Gist 文件
+    _safePayload(state) {
+      const safe = JSON.parse(JSON.stringify(state));
+      if (safe && safe.settings) { safe.settings.gistToken = ''; }
+      if (safe && safe.settings && safe.settings.ai) { safe.settings.ai.apiKey = ''; }
+      return safe;
+    },
+
     async save(state) {
       if (!this.ready) return false;
-      const content = JSON.stringify(state);
+      const content = JSON.stringify(this._safePayload(state));
       try {
         const res = await fetch('https://api.github.com/gists/' + this._gistId, {
           method: 'PATCH',
@@ -169,7 +177,7 @@
         const res = await fetch('https://api.github.com/gists', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
-          body: JSON.stringify({ description: 'lang-workbench sync', public: false, files: { 'langworkbench_state.json': { content: JSON.stringify(state) } } })
+          body: JSON.stringify({ description: 'lang-workbench sync', public: false, files: { 'langworkbench_state.json': { content: JSON.stringify(this._safePayload(state)) } } })
         });
         if (!res.ok) { this.error = '创建 Gist 失败（HTTP ' + res.status + '）'; return null; }
         const data = await res.json();
