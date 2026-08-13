@@ -1762,48 +1762,47 @@
         const gistCfg = $('#gistCfg');
         const gistHint = $('#gistHint');
         if (gistToggle) {
-          let gistConnecting = false;
           const tryEnableGist = async () => {
-            if (gistConnecting) return;
             const token = ($('#setGistToken').value || '').trim();
             const key = ($('#setGistKey').value || '').trim();
             s.gistToken = token; s.gistKey = key;
             if (!token) {
               gistHint.textContent = '请填写 GitHub Token 后自动连接';
+              gistHint.style.color = '';
               return;
             }
-            gistConnecting = true;
             gistHint.textContent = '连接中…';
+            gistHint.style.color = '';
             try {
               s.gistSync = true; Store.commit();
               const ok = await Store.enableGist(token, key);
               if (!ok) throw new Error(Store._gistError || '未知');
               gistHint.textContent = '已同步到 GitHub ✅';
+              gistHint.style.color = '';
               if (s.gistKey) $('#setGistKey').value = s.gistKey;
             } catch (err) {
+              // 失败：保留配置区可见，便于修改/删除 Token；不强制收起
               s.gistSync = false; Store.commit();
-              gistToggle.checked = false;
-              gistCfg.style.display = 'none';
-              gistHint.textContent = '失败：' + (err.message || err);
-            } finally {
-              gistConnecting = false;
+              gistHint.textContent = '失败：' + (err.message || err) + '（可修改后重试）';
+              gistHint.style.color = 'var(--danger)';
             }
           };
           gistToggle.addEventListener('change', () => {
             const on = gistToggle.checked;
             gistCfg.style.display = on ? '' : 'none';
-            s.gistSync = on; Store.commit();
             if (on) {
-              gistHint.textContent = '请填写 GitHub Token 后自动连接';
               tryEnableGist();
             } else {
+              s.gistSync = false; Store.commit();
               Store.disableGist();
               gistHint.textContent = '未开启';
+              gistHint.style.color = '';
             }
           });
           const gToken = $('#setGistToken'), gKey = $('#setGistKey');
-          if (gToken) gToken.addEventListener('input', e => { s.gistToken = e.target.value.trim(); if (gistToggle.checked) tryEnableGist(); });
-          if (gKey) gKey.addEventListener('input', e => { s.gistKey = e.target.value.trim(); if (gistToggle.checked) tryEnableGist(); });
+          // 仅在输入框保存值，不在每次按键时发起连接，避免失败循环
+          if (gToken) gToken.addEventListener('input', e => { s.gistToken = e.target.value.trim(); });
+          if (gKey) gKey.addEventListener('input', e => { s.gistKey = e.target.value.trim(); });
         }
         // AI 辅助开关
         const aiToggle = $('#setAi'), aiCfg = $('#aiCfg'), aiHint = $('#aiHint');
