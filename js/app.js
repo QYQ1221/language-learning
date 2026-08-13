@@ -1791,7 +1791,12 @@
             const on = gistToggle.checked;
             gistCfg.style.display = on ? '' : 'none';
             if (on) {
-              tryEnableGist();
+              // 打开时自动清空残留 Token/同步码，避免旧值卡死；填完按回车连接
+              if (gToken) { gToken.value = ''; s.gistToken = ''; }
+              if (gKey) { gKey.value = ''; s.gistKey = ''; }
+              Store.commit();
+              gistHint.textContent = '请填写 GitHub Token（仅 gist 权限），按回车连接';
+              gistHint.style.color = '';
             } else {
               s.gistSync = false; Store.commit();
               Store.disableGist();
@@ -1801,8 +1806,14 @@
           });
           const gToken = $('#setGistToken'), gKey = $('#setGistKey');
           // 仅在输入框保存值，不在每次按键时发起连接，避免失败循环
-          if (gToken) gToken.addEventListener('input', e => { s.gistToken = e.target.value.trim(); });
-          if (gKey) gKey.addEventListener('input', e => { s.gistKey = e.target.value.trim(); });
+          if (gToken) {
+            gToken.addEventListener('input', e => { s.gistToken = e.target.value.trim(); });
+            gToken.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryEnableGist(); } });
+          }
+          if (gKey) {
+            gKey.addEventListener('input', e => { s.gistKey = e.target.value.trim(); });
+            gKey.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryEnableGist(); } });
+          }
         }
         // AI 辅助开关
         const aiToggle = $('#setAi'), aiCfg = $('#aiCfg'), aiHint = $('#aiHint');
