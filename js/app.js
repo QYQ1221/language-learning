@@ -1781,9 +1781,14 @@
               gistHint.style.color = '';
               if (s.gistKey) $('#setGistKey').value = s.gistKey;
             } catch (err) {
-              // 失败：保留配置区可见，便于修改/删除 Token；不强制收起
+              // 失败：保留配置区可见，便于修改/删除 Token；把开关 UI 也复位，避免误导
               s.gistSync = false; Store.commit();
-              gistHint.textContent = '失败：' + (err.message || err) + '（可修改后重试）';
+              gistToggle.checked = false;
+              let msg = String(err.message || err);
+              if (/401|Bad credentials|Unauthorized/i.test(msg)) {
+                msg = 'Token 无效或已被撤销（401）：请重新生成一个只勾 gist 权限的 Classic Token 再粘贴';
+              }
+              gistHint.textContent = '失败：' + msg + '（可修改后重试）';
               gistHint.style.color = 'var(--danger)';
             }
           };
