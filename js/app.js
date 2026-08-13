@@ -1700,23 +1700,6 @@
       <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div>
-            <div style="font-size:13px;font-weight:600">云同步（手机 ↔ 电脑）</div>
-            <div style="font-size:11px;color:var(--text-3);margin-top:2px" id="cloudHint">${s.cloudSync ? '已开启' : '未开启'}</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="setCloud" ${s.cloudSync ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div id="cloudCfg" style="${s.cloudSync ? '' : 'display:none'}">
-          <input type="text" id="setCloudEnv" class="input" placeholder="CloudBase 环境 ID（envId）" value="${esc(s.cloudEnv || '')}" style="width:100%;margin-top:10px">
-          <input type="text" id="setCloudKey" class="input" placeholder="同步码（多端填同一个即可共享数据）" value="${esc(s.cloudKey || '')}" style="width:100%;margin-top:8px">
-          <div style="font-size:11px;color:var(--text-3);margin-top:6px">需先在 CloudBase 控制台建集合 <code>langworkbench_state</code>（权限：所有用户可读写）。首次开启会把本地数据上传到云端；之后多端实时同步。</div>
-        </div>
-      </div>
-      <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-          <div>
             <div style="font-size:13px;font-weight:600">GitHub 同步（手机 ↔ 电脑，免费）</div>
             <div style="font-size:11px;color:var(--text-3);margin-top:2px" id="gistHint">${s.gistSync ? '已开启' : '未开启'}</div>
           </div>
@@ -1774,53 +1757,6 @@
           s.difficulty[lg] = v;
           $$(`[data-set-diff="${lg}"] .chip`).forEach(x => x.classList.toggle('active', x === b));
         });
-        // 云同步开关
-        const cloudToggle = $('#setCloud');
-        const cloudCfg = $('#cloudCfg');
-        const cloudHint = $('#cloudHint');
-        if (cloudToggle) {
-          let cloudConnecting = false;
-          const tryEnableCloud = async () => {
-            if (cloudConnecting) return;
-            const env = ($('#setCloudEnv').value || '').trim();
-            const key = ($('#setCloudKey').value || '').trim();
-            s.cloudEnv = env; s.cloudKey = key;
-            if (!env || !key) {
-              cloudHint.textContent = '请填写环境 ID 和同步码后自动连接';
-              return;
-            }
-            cloudConnecting = true;
-            cloudHint.textContent = '连接中…';
-            try {
-              s.cloudSync = true; Store.commit();
-              const ok = await Store.enableCloud(env, key);
-              if (!ok) throw new Error(Store._cloudError || '未知');
-              cloudHint.textContent = '已同步到云端 ✅';
-            } catch (err) {
-              s.cloudSync = false; Store.commit();
-              cloudToggle.checked = false;
-              cloudCfg.style.display = 'none';
-              cloudHint.textContent = '失败：' + (err.message || err);
-            } finally {
-              cloudConnecting = false;
-            }
-          };
-          cloudToggle.addEventListener('change', () => {
-            const on = cloudToggle.checked;
-            cloudCfg.style.display = on ? '' : 'none';
-            s.cloudSync = on; Store.commit();
-            if (on) {
-              cloudHint.textContent = '请填写环境 ID 和同步码后自动连接';
-              tryEnableCloud();
-            } else {
-              Store.disableCloud();
-              cloudHint.textContent = '未开启';
-            }
-          });
-          const envIn = $('#setCloudEnv'), keyIn = $('#setCloudKey');
-          if (envIn) envIn.addEventListener('input', e => { s.cloudEnv = e.target.value.trim(); if (cloudToggle.checked) tryEnableCloud(); });
-          if (keyIn) keyIn.addEventListener('input', e => { s.cloudKey = e.target.value.trim(); if (cloudToggle.checked) tryEnableCloud(); });
-        }
         // GitHub 同步开关
         const gistToggle = $('#setGist');
         const gistCfg = $('#gistCfg');
@@ -2349,11 +2285,7 @@
     seedIfEmpty();
     bindGlobal();
     bindSyncStatus();
-    // 若已开启云同步 / GitHub 同步，启动后自动接入（失败则降级本地，不打断使用）
-    if (Store.state.settings.cloudSync && Store.state.settings.cloudEnv && Store.state.settings.cloudKey) {
-      const ok = await Store.enableCloud(Store.state.settings.cloudEnv, Store.state.settings.cloudKey);
-      if (!ok) toast('云同步连接失败：' + (Store._cloudError || '未知') + '（已用本地数据）', 'warn');
-    }
+    // 若已开启 GitHub 同步，启动后自动接入（失败则降级本地，不打断使用）
     if (Store.state.settings.gistSync && Store.state.settings.gistToken) {
       const ok = await Store.enableGist(Store.state.settings.gistToken, Store.state.settings.gistKey);
       if (!ok) toast('GitHub 同步连接失败：' + (Store._gistError || '未知') + '（已用本地数据）', 'warn');

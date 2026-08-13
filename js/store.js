@@ -2,7 +2,7 @@
    store.js — 数据层
    职责：数据模型 / 自动保存 / 持久化适配器 / SRS 复习算法 / 统计
    设计要点：持久化通过 Adapter 接口隔离，当前为 LocalAdapter，
-   后续接入腾讯云 CloudBase 时只需实现 CloudAdapter，上层逻辑零改动。
+   当前默认 LocalAdapter（localStorage）；可扩展其他同步适配器，上层逻辑零改动。
    ============================================================ */
 
 (function (global) {
@@ -114,89 +114,6 @@
     }
   };
 
-  /**
-   * 云端适配器（腾讯云 CloudBase）。
-   * 通过浏览器 CDN 懒加载官方 JS SDK，无需构建步骤；无网络/未配置时自动降级到 LocalAdapter。
-   * 多端共享：doc 的 _id 由「同步码」派生，同一同步码的不同设备读写同一份状态。
-   * 集合要求：CloudBase 中建集合 `langworkbench_state`，权限设为「所有用户可读写」。
-   */
-  const CloudAdapter = {
-    name: 'cloud',
-    ready: false,
-    error: null,
-    _app: null,
-    _coll: null,
-    _docId: null,
-    _watch: null,
-
-    async _ensureSdk() {
-      if (global.cloudbase) return global.cloudbase;
-      await new Promise((res, rej) => {
-        const s = global.document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/@cloudbase/js-sdk@1.7.2/dist/cloudbase.full.js';
-        s.async = true;
-        s.onload = () => res();
-        s.onerror = () => rej(new Error('CloudBase SDK 加载失败（请检查网络）'));
-        (global.document.head || global.document.body || global.document).appendChild(s);
-      });
-      if (!global.cloudbase) throw new Error('CloudBase SDK 未就绪');
-      return global.cloudbase;
-    },
-
-    async init(cfg) {
-      const envId = cfg && cfg.envId;
-      if (!envId) { this.ready = false; this.error = '缺少 envId'; return false; }
-      try {
-        const cloudbase = await this._ensureSdk();
-        this._app = cloudbase.init({ env: envId });
-        this._coll = this._app.database().collection('langworkbench_state');
-        this._docId = 'wbsync_' + (cfg.key || envId);
-        this.ready = true;
-        this.error = null;
-        return true;
-      } catch (e) {
-        this.ready = false;
-        this.error = e && e.message ? e.message : String(e);
-        console.warn('[CloudAdapter] 初始化失败', e);
-        return false;
-      }
-    },
-
-    async load() {
-      if (!this.ready) return null;
-      try {
-        const res = await this._coll.doc(this._docId).get();
-        if (res && res.data && res.data[0]) return res.data[0].state || null;
-        return null;
-      } catch (e) { console.warn('[CloudAdapter] 读取失败', e); return null; }
-    },
-
-    async save(state) {
-      if (!this.ready) return false;
-      try {
-        await this._coll.doc(this._docId).set({ state, updatedAt: Date.now() });
-        return true;
-      } catch (e) { console.warn('[CloudAdapter] 保存失败', e); return false; }
-    },
-
-    subscribe(cb) {
-      if (!this.ready) return () => {};
-      try {
-        this._watch = this._coll.doc(this._docId).watch({
-          onChange: (snapshot) => {
-            try {
-              const docs = (snapshot && (snapshot.docs || snapshot.data)) || [];
-              const doc = Array.isArray(docs) ? docs[0] : null;
-              if (doc && doc.state) cb(doc.state);
-            } catch (e) { /* ignore */ }
-          },
-          onError: () => { /* ignore */ }
-        });
-        return () => { try { this._watch && this._watch.close(); } catch (e) {} };
-      } catch (e) { return () => {}; }
-    }
-  };
-
   // GitHub Gist 同步适配器（免费、零服务器；浏览器直连 api.github.com，CORS 已验证支持）
   const GistAdapter = {
     name: 'gist',
@@ -294,9 +211,6 @@
         activeLang: 'all',
         dailyGoal: 10,                          // 每日每语言词量
         difficulty: { en: 3, ja: 1, ko: 1 },    // 各语言难度上限：en=混合全部 / ja,ko=入门起点
-        cloudSync: false,                       // 是否启用 CloudBase 云同步
-        cloudEnv: '',                           // CloudBase 环境 ID (envId)
-        cloudKey: '',                           // 同步码：多端共用同一码即共享同一份数据
         gistSync: false,                        // 是否启用 GitHub Gist 同步
         gistToken: '',                          // GitHub Personal Access Token（仅勾 gist 权限）
         gistKey: '',                            // 同步码 = Gist ID（多端共用同一码即共享同一份数据）
@@ -315,9 +229,6 @@
     _saveTimer: null,
     _status: 'idle',      // idle | saving | saved | offline
     _statusListeners: [],
-    _cloudError: null,    // 云同步最近一次错误
-    _cloudEnabled: false,
-    _cloudUnsub: null,
     _gistError: null,     // GitHub 同步最近一次错误
     _gistEnabled: false,
     _gistUnsub: null,
@@ -327,11 +238,6 @@
 
     async init() {
       let loaded = await this.adapter.load();
-      if (!loaded && this.adapter === CloudAdapter) {
-        // 云端拉取失败（离线等）→ 回退本地缓存，避免丢数据
-        loaded = await LocalAdapter.load();
-        if (loaded) this._cloudError = '云端不可达，已用本地缓存';
-      }
       if (loaded && typeof loaded === 'object') {
         this.state = Object.assign(defaultState(), loaded);
         this.state.settings = Object.assign(defaultState().settings, loaded.settings || {});
@@ -378,11 +284,7 @@
     },
 
     /**
-     * 启用云同步：初始化 CloudAdapter → 拉取远端（远端优先，否则把本地上传）→ 订阅实时变更。
-     * 返回是否成功。失败原因见 this._cloudError。
-     */
-    /**
-     * 远端状态合并（仅首次接入时使用）：保留本地尚未上云的记录，避免开启云同步即丢数据。
+     * 远端状态合并（首次接入远端同步时使用）：保留本地尚未上云的记录，避免接入即丢数据。
      * - 条目：远端优先，并集（按 id 去重）。
      * - 打卡：布尔 OR，分钟取最大。
      */
@@ -425,39 +327,6 @@
       return true;
     },
 
-    async enableCloud(envId, key) {
-      const ok = await CloudAdapter.init({ envId, key });
-      if (!ok) { this._cloudError = CloudAdapter.error; return false; }
-      this.useAdapter(CloudAdapter);
-      const remote = await CloudAdapter.load();
-      if (remote && typeof remote === 'object') {
-        // 首次接入：本地可能与云端不同，合并后上传，避免丢本地数据
-        this.state = this._mergeForCloud(remote);
-        this._migrate();
-        this.commit();           // 保存合并结果（一次性）
-        this._mirrorLocal();
-      } else {
-        await CloudAdapter.save(this.state); // 首次：本地数据上传
-        this._mirrorLocal();
-      }
-      if (this._cloudUnsub) { try { this._cloudUnsub(); } catch (e) {} }
-      this._cloudUnsub = CloudAdapter.subscribe((remoteState) => {
-        if (this._applyRemote(remoteState)) {
-          this._emit();           // 仅重渲染，不触发 save，避免 save→watch→save 死循环
-          if (this.onRemote) this.onRemote();
-        }
-      });
-      this._cloudEnabled = true;
-      return true;
-    },
-
-    /** 关闭云同步，切回本地。 */
-    disableCloud() {
-      if (this._cloudUnsub) { try { this._cloudUnsub(); } catch (e) {} this._cloudUnsub = null; }
-      this.useAdapter(LocalAdapter);
-      this._cloudEnabled = false;
-      return true;
-    },
 
     /**
      * 启用 GitHub Gist 同步（免费、零服务器）：初始化 GistAdapter → 拉取远端（合并）→ 轮询订阅近实时变更。
@@ -1014,6 +883,6 @@
     uid, todayKey, addDays, daysBetween,
     formatDateLabel, weekdayLabel, relativeDayLabel,
     parseBulk, parseTags,
-    LocalAdapter, CloudAdapter, GistAdapter
+    LocalAdapter, GistAdapter
   };
 })(window);
