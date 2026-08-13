@@ -1791,10 +1791,11 @@
             const on = gistToggle.checked;
             gistCfg.style.display = on ? '' : 'none';
             if (on) {
-              // 打开时自动清空残留 Token/同步码，避免旧值卡死；填完按回车连接
-              if (gToken) { gToken.value = ''; s.gistToken = ''; }
-              if (gKey) { gKey.value = ''; s.gistKey = ''; }
-              Store.commit();
+              // 仅当原本就没有 Token/同步码（首次/全空）时才清空；已填过的不误清，避免"填写一次就消失"
+              if (!s.gistToken && !s.gistKey) {
+                if (gToken) gToken.value = '';
+                if (gKey) gKey.value = '';
+              }
               gistHint.textContent = '请填写 GitHub Token（仅 gist 权限），按回车连接';
               gistHint.style.color = '';
             } else {
