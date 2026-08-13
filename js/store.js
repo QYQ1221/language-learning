@@ -411,6 +411,19 @@
       return true;
     },
 
+    /**
+     * 仅断开同步（停止轮询、切回本地），但【保留】已填写的 Token/同步码。
+     * 用于「手动关闭同步开关」：断开连接但不清空用户填写内容，再次开启时可自动重连。
+     * 与 disableGist() 的区别：disableGist 会清空凭证（用于失败/清除数据等需要彻底重置的场景）。
+     */
+    disableGistKeep() {
+      if (this._gistUnsub) { try { this._gistUnsub(); } catch (e) {} this._gistUnsub = null; }
+      this.useAdapter(LocalAdapter);
+      this._gistEnabled = false;
+      this.commit();
+      return true;
+    },
+
     // ===== 订阅 =====
 
     subscribe(fn) {

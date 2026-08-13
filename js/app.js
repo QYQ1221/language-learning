@@ -1729,7 +1729,15 @@
           <input type="text" id="setAiBase" class="input" placeholder="接口地址，如 https://api.openai.com/v1" value="${esc((s.ai && s.ai.baseUrl) || '')}" style="width:100%;margin-top:10px">
           <input type="text" id="setAiKey" class="input" placeholder="API Key（仅存本机浏览器，不上传）" value="${esc((s.ai && s.ai.apiKey) || '')}" style="width:100%;margin-top:8px">
           <input type="text" id="setAiModel" class="input" placeholder="模型名，如 gpt-4o-mini / deepseek-chat" value="${esc((s.ai && s.ai.model) || '')}" style="width:100%;margin-top:8px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">
+            <span style="font-size:11px;color:var(--text-3)">一键填入接口与模型：</span>
+            <button class="btn btn-xs btn-ghost" type="button" data-ai-preset="zhipu">智谱</button>
+            <button class="btn btn-xs btn-ghost" type="button" data-ai-preset="deepseek">DeepSeek</button>
+            <button class="btn btn-xs btn-ghost" type="button" data-ai-preset="volc">火山引擎</button>
+            <button class="btn btn-xs btn-ghost" type="button" data-ai-preset="silicon">硅基流动</button>
+          </div>
           <button class="btn btn-sm btn-ghost" id="setAiTest" type="button" style="margin-top:8px">🧪 测试 AI 连接</button>
+          <div style="font-size:11px;color:var(--text-3);margin-top:6px">🔒 你的 API Key 仅保存在本机浏览器，<b>不会写入同步 Gist、不经过任何中转服务器</b>；学习数据只存于你自己的私人 Gist 与本地，不会被他人获取。点上方厂商按钮会自动填好接口地址与模型名，你只需填写 Key（光标会自动跳到 Key 框）。</div>
           <pre id="setAiTestResult" style="display:none;margin-top:8px;font-size:11px;background:var(--bg-2);padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;color:var(--text-2);max-height:160px;overflow:auto"></pre>
           <div style="font-size:11px;color:var(--text-3);margin-top:6px">OpenAI 兼容接口即可（OpenAI / DeepSeek / 通义 / Moonshot 等）。Key 不上传服务器、仅浏览器直连。<b style="color:var(--warn)">注意：浏览器直连要求接口支持跨域（CORS）</b>——官方接口通常允许；若用中转/自建代理，需其返回 <code>Access-Control-Allow-Origin</code> 放行本站来源，否则会"网络请求失败"。接口地址务必用 <b>https</b>（本页是 HTTPS，调 http 会被混合内容拦截）。开启后：生成学习会按主题自动补词；手动加词可一键补全释义/例句/读音。</div>
         </div>
@@ -1749,6 +1757,40 @@
       body,
       foot: `<button class="btn btn-primary" id="setSave">完成</button>`,
       onMount(c) {
+        // 统一的 GitHub 连接逻辑（供「回车」「开关自动重连」「关闭设置后台连接」复用）
+        const connectGist = async (opts) => {
+          opts = opts || {};
+          const gt = $('#setGistToken'), gk = $('#setGistKey'), gh = $('#gistHint'), tog = $('#setGist');
+          const token = (gt ? gt.value : '').trim();
+          const key = (gk ? gk.value : '').trim();
+          s.gistToken = token; s.gistKey = key;
+          if (!token) {
+            if (!opts.silent && gh) { gh.textContent = '请填写 GitHub Token 后自动连接'; gh.style.color = ''; }
+            return;
+          }
+          if (!opts.silent && gh) { gh.textContent = '连接中…'; gh.style.color = ''; }
+          try {
+            s.gistSync = true; Store.commit();
+            const ok = await Store.enableGist(token, key);
+            if (!ok) throw new Error(Store._gistError || '未知');
+            if (gk && s.gistKey) gk.value = s.gistKey;
+            if (!opts.silent && gh) { gh.textContent = '已同步到 GitHub ✅'; gh.style.color = ''; }
+            if (opts.useToast) toast('GitHub 同步已连接', 'ok');
+          } catch (err) {
+            // 连接失败：清空填写内容并关闭同步（防止失效 Token 残留与失败循环）
+            s.gistSync = false;
+            Store.disableGist();   // 内部清空 gistToken/gistKey 并切回本地
+            if (tog) tog.checked = false;
+            if (gt) gt.value = '';
+            if (gk) gk.value = '';
+            let msg = String(err.message || err);
+            if (/401|Bad credentials|Unauthorized/i.test(msg)) {
+              msg = 'Token 无效或已被撤销（401）：请重新生成只勾 gist 权限的 Classic Token 再粘贴';
+            }
+            if (!opts.silent && gh) { gh.textContent = '连接失败：' + msg + '（已清空，请重新填写）'; gh.style.color = 'var(--danger)'; }
+            if (opts.useToast) toast('GitHub 同步连接失败：' + msg + '（已清空填写内容）', 'warn');
+          }
+        };
         $('#setCount').addEventListener('input', e => {
           $('#setCountVal').textContent = e.target.value + ' 个/语';
         });
@@ -1762,53 +1804,26 @@
         const gistCfg = $('#gistCfg');
         const gistHint = $('#gistHint');
         if (gistToggle) {
-          const tryEnableGist = async () => {
-            const token = ($('#setGistToken').value || '').trim();
-            const key = ($('#setGistKey').value || '').trim();
-            s.gistToken = token; s.gistKey = key;
-            if (!token) {
-              gistHint.textContent = '请填写 GitHub Token 后自动连接';
-              gistHint.style.color = '';
-              return;
-            }
-            gistHint.textContent = '连接中…';
-            gistHint.style.color = '';
-            try {
-              s.gistSync = true; Store.commit();
-              const ok = await Store.enableGist(token, key);
-              if (!ok) throw new Error(Store._gistError || '未知');
-              gistHint.textContent = '已同步到 GitHub ✅';
-              gistHint.style.color = '';
-              if (s.gistKey) $('#setGistKey').value = s.gistKey;
-            } catch (err) {
-              // 失败：保留配置区可见，便于修改/删除 Token；把开关 UI 也复位，避免误导
-              s.gistSync = false; Store.commit();
-              gistToggle.checked = false;
-              let msg = String(err.message || err);
-              if (/401|Bad credentials|Unauthorized/i.test(msg)) {
-                msg = 'Token 无效或已被撤销（401）：请重新生成一个只勾 gist 权限的 Classic Token 再粘贴';
-              }
-              gistHint.textContent = '失败：' + msg + '（可修改后重试）';
-              gistHint.style.color = 'var(--danger)';
-            }
-          };
           gistToggle.addEventListener('change', () => {
             const on = gistToggle.checked;
             gistCfg.style.display = on ? '' : 'none';
             if (on) {
-              // 仅当原本就没有 Token/同步码（首次/全空）时才清空；已填过的不误清，避免"填写一次就消失"
-              if (!s.gistToken && !s.gistKey) {
+              s.gistSync = true; Store.commit();   // 标记开启意图
+              if (s.gistToken) {
+                connectGist();   // 已有 Token：自动重连（内容保留）
+              } else {
+                // 首次/全空：清空输入，提示填写（避免"填一次就消失"）
+                const gToken = $('#setGistToken'), gKey = $('#setGistKey');
                 if (gToken) gToken.value = '';
                 if (gKey) gKey.value = '';
+                gistHint.textContent = '请填写 GitHub Token（仅 gist 权限），按回车连接';
+                gistHint.style.color = '';
               }
-              gistHint.textContent = '请填写 GitHub Token（仅 gist 权限），按回车连接';
-              gistHint.style.color = '';
             } else {
+              // 手动关闭：断开连接，但保留已填的 Token/同步码（再次开启自动重连，不丢内容）
               s.gistSync = false;
-              Store.disableGist();   // 内部已清空 gistToken/gistKey 并 commit
-              if (gToken) gToken.value = '';
-              if (gKey) gKey.value = '';
-              gistHint.textContent = '未开启（已清除 Token，重新开启需重填）';
+              Store.disableGistKeep();
+              gistHint.textContent = '已断开（Token 已保留，再次开启自动重连）';
               gistHint.style.color = '';
             }
           });
@@ -1816,11 +1831,11 @@
           // 仅在输入框保存值，不在每次按键时发起连接，避免失败循环
           if (gToken) {
             gToken.addEventListener('input', e => { s.gistToken = e.target.value.trim(); });
-            gToken.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryEnableGist(); } });
+            gToken.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); connectGist(); } });
           }
           if (gKey) {
             gKey.addEventListener('input', e => { s.gistKey = e.target.value.trim(); });
-            gKey.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryEnableGist(); } });
+            gKey.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); connectGist(); } });
           }
         }
         // AI 辅助开关
@@ -1859,6 +1874,27 @@
               aiTest.disabled = false;
             }
           };
+          // 厂商一键填入：自动填好接口地址与模型名，聚焦 Key 输入框，不覆盖已有 Key
+          const AI_PRESETS = {
+            zhipu:    { name: '智谱',    baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-plus' },
+            deepseek: { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1',          model: 'deepseek-chat' },
+            volc:     { name: '火山引擎', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'deepseek-v3-250324' },
+            silicon:  { name: '硅基流动', baseUrl: 'https://api.siliconflow.cn/v1',         model: 'deepseek-ai/DeepSeek-V3' }
+          };
+          $$('[data-ai-preset]').forEach(btn => {
+            btn.onclick = () => {
+              const p = AI_PRESETS[btn.dataset.aiPreset];
+              if (!p) return;
+              s.ai.baseUrl = p.baseUrl;
+              s.ai.model = p.model;
+              const ab = $('#setAiBase'), am = $('#setAiModel'), ak = $('#setAiKey');
+              if (ab) ab.value = p.baseUrl;
+              if (am) am.value = p.model;
+              if (ak) ak.focus();   // 输入焦点放在 Key 框，只需填写 Key
+              Store.commit();
+              toast('已填入「' + p.name + '」接口与模型，请填写 API Key', 'ok');
+            };
+          });
         }
         // 每日每语词量滑块：实时更新“X 个/语”与“三语合计”
         const setCountEl = $('#setCount');
@@ -1870,13 +1906,37 @@
           };
           setCountEl.addEventListener('input', updCount);
         }
+        // 关闭设置时的收尾：开了开关却没填凭证 → 自动关闭同步（保留已填写内容则保持开启）
+        const beforeClose = () => {
+          if (s.gistSync) {
+            if (!s.gistToken && !s.gistKey) {
+              // 开启了 GitHub 同步但没填 Token/同步码 → 自动关闭
+              s.gistSync = false;
+              Store.disableGistKeep();
+              if (gistToggle) gistToggle.checked = false;
+            } else if (Store.adapter.name !== 'gist') {
+              // 已填凭证但尚未连接（如填完直接关设置）→ 后台尝试连接
+              connectGist({ silent: true, useToast: true });
+            }
+          }
+          if (s.ai && s.ai.enabled && !s.ai.apiKey) {
+            // 开启了 AI 辅助但没填 Key → 自动关闭
+            s.ai.enabled = false;
+            if (aiToggle) aiToggle.checked = false;
+          }
+          Store.commit();
+        };
+        const finish = () => { beforeClose(); c(); };
         $('#setSave').onclick = () => {
           s.dailyGoal = Number($('#setCount').value) || 10;
           Store.commit();
           if (ui.view === 'capture') render();
-          c();
+          finish();
           toast('设置已保存', 'ok');
         };
+        // 关闭（X / 点遮罩）同样走 beforeClose 收尾逻辑
+        $('#mdClose').onclick = finish;
+        $('#mdBackdrop').onclick = e => { if (e.target.id === 'mdBackdrop') finish(); };
         // 数据管理：导出 / 导入 / 清除
         const setExport = $('#setExport');
         if (setExport) setExport.onclick = () => { c(); doExport(); };
