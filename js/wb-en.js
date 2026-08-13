@@ -1,0 +1,230 @@
+/* ============================================================
+   英语主题词库
+   字段：t 单词 / r 音标 / p 词性 / m 释义 / e 例句 / et 例句翻译
+        lv 难度(1入门 2中级 3进阶) / th 主题标签 / ty 类型
+   ============================================================ */
+
+window.WORDBANK_EN = [
+
+  // ===================== 元气满满 energetic =====================
+  { t: 'motivated', r: '/ˈmoʊtɪveɪtɪd/', p: 'adj.', m: '有动力的，积极的', e: 'I feel really motivated this morning.', et: '今天早上我特别有干劲。', lv: 1, th: ['energetic'] },
+  { t: 'productive', r: '/prəˈdʌktɪv/', p: 'adj.', m: '高效的，多产的', e: 'It was a productive day.', et: '今天很高效。', lv: 1, th: ['energetic', 'work'] },
+  { t: 'energetic', r: '/ˌenərˈdʒetɪk/', p: 'adj.', m: '精力充沛的', e: 'She is always energetic in the morning.', et: '她早上总是精力充沛。', lv: 1, th: ['energetic', 'health'] },
+  { t: 'determined', r: '/dɪˈtɜːrmɪnd/', p: 'adj.', m: '下定决心的', e: 'He was determined to finish it.', et: '他下定决心要完成它。', lv: 2, th: ['energetic', 'study'] },
+  { t: 'ambitious', r: '/æmˈbɪʃəs/', p: 'adj.', m: '有雄心的', e: 'She has an ambitious plan.', et: '她有一个雄心勃勃的计划。', lv: 2, th: ['energetic', 'work'] },
+  { t: 'thrive', r: '/θraɪv/', p: 'v.', m: '茁壮成长，蓬勃发展', e: 'He thrives under pressure.', et: '他在压力下反而表现更好。', lv: 3, th: ['energetic', 'work'] },
+  { t: 'momentum', r: '/moʊˈmentəm/', p: 'n.', m: '势头，动力', e: 'We need to keep the momentum going.', et: '我们得保持这个势头。', lv: 3, th: ['energetic', 'work'] },
+  { t: 'get going', r: '/ɡet ˈɡoʊɪŋ/', p: 'phr.', m: '开始行动，出发', e: 'Let\'s get going before it rains.', et: '趁没下雨我们出发吧。', lv: 1, th: ['energetic', 'daily'], ty: 'phrase' },
+  { t: 'pumped', r: '/pʌmpt/', p: 'adj.', m: '兴奋的，热血沸腾的', e: 'I am so pumped for the trip.', et: '我对这次旅行超级兴奋。', lv: 2, th: ['energetic', 'happy'] },
+  { t: 'refreshed', r: '/rɪˈfreʃt/', p: 'adj.', m: '恢复精神的', e: 'I feel refreshed after the nap.', et: '小睡之后我感觉精神多了。', lv: 2, th: ['energetic', 'health'] },
+  { t: 'proactive', r: '/proʊˈæktɪv/', p: 'adj.', m: '主动的，先发制人的', e: 'Try to be proactive rather than reactive.', et: '要主动出击，而不是被动应对。', lv: 3, th: ['energetic', 'work'] },
+  { t: 'on a roll', r: '/ɒn ə roʊl/', p: 'phr.', m: '状态火热，连连成功', e: 'Don\'t stop now — you\'re on a roll.', et: '别停，你现在状态正好。', lv: 2, th: ['energetic'], ty: 'phrase' },
+
+  // ===================== 心情不错 happy =====================
+  { t: 'delighted', r: '/dɪˈlaɪtɪd/', p: 'adj.', m: '十分高兴的', e: 'I was delighted to hear the news.', et: '听到这消息我很高兴。', lv: 2, th: ['happy'] },
+  { t: 'cheerful', r: '/ˈtʃɪrfl/', p: 'adj.', m: '开朗的，愉快的', e: 'He has a cheerful personality.', et: '他性格很开朗。', lv: 1, th: ['happy'] },
+  { t: 'grateful', r: '/ˈɡreɪtfl/', p: 'adj.', m: '感激的', e: 'I am grateful for your help.', et: '感谢你的帮助。', lv: 1, th: ['happy', 'love'] },
+  { t: 'satisfying', r: '/ˈsætɪsfaɪɪŋ/', p: 'adj.', m: '令人满足的', e: 'Finishing a book is deeply satisfying.', et: '读完一本书特别有满足感。', lv: 2, th: ['happy', 'study'] },
+  { t: 'cheer up', r: '/tʃɪr ʌp/', p: 'phr.', m: '振作起来，高兴点', e: 'Cheer up, things will get better.', et: '开心点，会好起来的。', lv: 1, th: ['happy'], ty: 'phrase' },
+  { t: 'in a good mood', r: '/ɪn ə ɡʊd muːd/', p: 'phr.', m: '心情好', e: 'She is in a good mood today.', et: '她今天心情不错。', lv: 1, th: ['happy'], ty: 'phrase' },
+  { t: 'uplifting', r: '/ˌʌpˈlɪftɪŋ/', p: 'adj.', m: '振奋人心的', e: 'That was an uplifting movie.', et: '那部电影很治愈很振奋。', lv: 2, th: ['happy', 'drama'] },
+  { t: 'blissful', r: '/ˈblɪsfl/', p: 'adj.', m: '幸福的，极乐的', e: 'They spent a blissful weekend together.', et: '他们一起度过了幸福的周末。', lv: 3, th: ['happy', 'love'] },
+  { t: 'euphoric', r: '/juːˈfɔːrɪk/', p: 'adj.', m: '欣喜若狂的', e: 'The crowd was euphoric after the win.', et: '获胜后人群欣喜若狂。', lv: 3, th: ['happy', 'music'] },
+  { t: 'content', r: '/kənˈtent/', p: 'adj.', m: '知足的，满意的', e: 'I am content with what I have.', et: '我对现在拥有的很满足。', lv: 2, th: ['happy', 'calm'] },
+  { t: 'burst out laughing', r: '/bɜːrst aʊt ˈlæfɪŋ/', p: 'phr.', m: '突然大笑起来', e: 'We all burst out laughing.', et: '我们都笑喷了。', lv: 2, th: ['happy'], ty: 'phrase' },
+
+  // ===================== 平静放空 calm =====================
+  { t: 'peaceful', r: '/ˈpiːsfl/', p: 'adj.', m: '宁静的', e: 'It is peaceful here in the morning.', et: '这里早上很宁静。', lv: 1, th: ['calm', 'nature'] },
+  { t: 'relax', r: '/rɪˈlæks/', p: 'v.', m: '放松', e: 'I just want to relax tonight.', et: '今晚我只想放松一下。', lv: 1, th: ['calm', 'daily'] },
+  { t: 'cozy', r: '/ˈkoʊzi/', p: 'adj.', m: '舒适温馨的', e: 'This café is really cozy.', et: '这家咖啡馆特别温馨。', lv: 1, th: ['calm', 'daily'] },
+  { t: 'unwind', r: '/ˌʌnˈwaɪnd/', p: 'v.', m: '放松身心', e: 'Music helps me unwind.', et: '音乐能让我放松下来。', lv: 2, th: ['calm', 'music'] },
+  { t: 'serene', r: '/səˈriːn/', p: 'adj.', m: '安详的，宁静的', e: 'The lake looked serene at dawn.', et: '黎明时湖面显得格外宁静。', lv: 3, th: ['calm', 'nature'] },
+  { t: 'mindful', r: '/ˈmaɪndfl/', p: 'adj.', m: '专注当下的，留心的', e: 'Try to be mindful of your breathing.', et: '试着专注于自己的呼吸。', lv: 2, th: ['calm', 'health'] },
+  { t: 'take it easy', r: '/teɪk ɪt ˈiːzi/', p: 'phr.', m: '放轻松，别紧张', e: 'Take it easy, we have plenty of time.', et: '别急，我们时间还多。', lv: 1, th: ['calm'], ty: 'phrase' },
+  { t: 'solitude', r: '/ˈsɑːlətuːd/', p: 'n.', m: '独处，独居', e: 'She enjoys solitude on weekends.', et: '她喜欢周末独处。', lv: 3, th: ['calm', 'lonely'] },
+  { t: 'tranquil', r: '/ˈtræŋkwɪl/', p: 'adj.', m: '平静的', e: 'We stayed in a tranquil village.', et: '我们住在一个宁静的村子里。', lv: 3, th: ['calm', 'travel'] },
+  { t: 'slow down', r: '/sloʊ daʊn/', p: 'phr.', m: '放慢节奏', e: 'You should slow down a bit.', et: '你该慢下来一点。', lv: 1, th: ['calm', 'health'], ty: 'phrase' },
+
+  // ===================== 有点累 tired =====================
+  { t: 'exhausted', r: '/ɪɡˈzɔːstɪd/', p: 'adj.', m: '筋疲力尽的', e: 'I am exhausted after work.', et: '下班后我累坏了。', lv: 1, th: ['tired', 'work'] },
+  { t: 'sleepy', r: '/ˈsliːpi/', p: 'adj.', m: '困倦的', e: 'I feel sleepy in the afternoon.', et: '我下午容易犯困。', lv: 1, th: ['tired', 'daily'] },
+  { t: 'burnout', r: '/ˈbɜːrnaʊt/', p: 'n.', m: '职业倦怠，精疲力竭', e: 'Many workers suffer from burnout.', et: '很多上班族有职业倦怠。', lv: 3, th: ['tired', 'work'] },
+  { t: 'drained', r: '/dreɪnd/', p: 'adj.', m: '被掏空的，耗尽的', e: 'I feel completely drained.', et: '我感觉整个人被掏空了。', lv: 2, th: ['tired'] },
+  { t: 'take a break', r: '/teɪk ə breɪk/', p: 'phr.', m: '休息一下', e: 'Let\'s take a break for ten minutes.', et: '我们休息十分钟吧。', lv: 1, th: ['tired', 'work'], ty: 'phrase' },
+  { t: 'worn out', r: '/wɔːrn aʊt/', p: 'phr.', m: '疲惫不堪的', e: 'She looked worn out after the trip.', et: '旅行后她看起来疲惫不堪。', lv: 2, th: ['tired'], ty: 'phrase' },
+  { t: 'oversleep', r: '/ˌoʊvərˈsliːp/', p: 'v.', m: '睡过头', e: 'Sorry, I overslept this morning.', et: '抱歉，我今早睡过头了。', lv: 1, th: ['tired', 'daily'] },
+  { t: 'recharge', r: '/ˌriːˈtʃɑːrdʒ/', p: 'v.', m: '充电，恢复精力', e: 'I need a weekend to recharge.', et: '我需要一个周末来充电。', lv: 2, th: ['tired', 'health'] },
+  { t: 'sluggish', r: '/ˈslʌɡɪʃ/', p: 'adj.', m: '迟钝的，无精打采的', e: 'I feel sluggish without coffee.', et: '不喝咖啡我就没精神。', lv: 3, th: ['tired'] },
+  { t: 'call it a day', r: '/kɔːl ɪt ə deɪ/', p: 'phr.', m: '收工，今天到此为止', e: 'It is late — let\'s call it a day.', et: '不早了，今天就到这儿吧。', lv: 2, th: ['tired', 'work'], ty: 'phrase' },
+
+  // ===================== 焦虑压力 anxious =====================
+  { t: 'anxious', r: '/ˈæŋkʃəs/', p: 'adj.', m: '焦虑的，担心的', e: 'I feel anxious about the exam.', et: '我对考试感到焦虑。', lv: 1, th: ['anxious', 'study'] },
+  { t: 'stressed out', r: '/strest aʊt/', p: 'phr.', m: '压力很大的', e: 'She is stressed out at work.', et: '她工作压力很大。', lv: 1, th: ['anxious', 'work'], ty: 'phrase' },
+  { t: 'overwhelmed', r: '/ˌoʊvərˈwelmd/', p: 'adj.', m: '不知所措的，被压垮的', e: 'I feel overwhelmed by all these tasks.', et: '这么多任务让我喘不过气。', lv: 2, th: ['anxious', 'work'] },
+  { t: 'deadline', r: '/ˈdedlaɪn/', p: 'n.', m: '截止日期', e: 'The deadline is this Friday.', et: '截止日期是这周五。', lv: 1, th: ['anxious', 'work'] },
+  { t: 'panic', r: '/ˈpænɪk/', p: 'v./n.', m: '恐慌，惊慌', e: 'Don\'t panic, we can fix it.', et: '别慌，我们能解决。', lv: 1, th: ['anxious'] },
+  { t: 'cope with', r: '/koʊp wɪð/', p: 'phr.', m: '应对，处理', e: 'How do you cope with stress?', et: '你是怎么应对压力的？', lv: 2, th: ['anxious', 'health'], ty: 'phrase' },
+  { t: 'restless', r: '/ˈrestləs/', p: 'adj.', m: '坐立不安的', e: 'I was restless all night.', et: '我一整晚都心神不宁。', lv: 2, th: ['anxious'] },
+  { t: 'apprehensive', r: '/ˌæprɪˈhensɪv/', p: 'adj.', m: '忧虑的，担心的', e: 'She was apprehensive about moving abroad.', et: '她对出国这件事忧心忡忡。', lv: 3, th: ['anxious', 'travel'] },
+  { t: 'under pressure', r: '/ˈʌndər ˈpreʃər/', p: 'phr.', m: '处于压力之下', e: 'He performs well under pressure.', et: '他在压力下表现很好。', lv: 2, th: ['anxious', 'work'], ty: 'phrase' },
+  { t: 'let off steam', r: '/let ɔːf stiːm/', p: 'phr.', m: '发泄情绪', e: 'Exercise helps me let off steam.', et: '运动能帮我发泄情绪。', lv: 3, th: ['anxious', 'health'], ty: 'phrase' },
+
+  // ===================== 有点emo lonely =====================
+  { t: 'lonely', r: '/ˈloʊnli/', p: 'adj.', m: '孤独的', e: 'I sometimes feel lonely in this city.', et: '在这座城市我有时会觉得孤单。', lv: 1, th: ['lonely'] },
+  { t: 'miss', r: '/mɪs/', p: 'v.', m: '想念', e: 'I miss my family a lot.', et: '我很想念家人。', lv: 1, th: ['lonely', 'love'] },
+  { t: 'nostalgic', r: '/nɑːˈstældʒɪk/', p: 'adj.', m: '怀旧的', e: 'This song makes me nostalgic.', et: '这首歌让我很怀念过去。', lv: 3, th: ['lonely', 'music'] },
+  { t: 'homesick', r: '/ˈhoʊmsɪk/', p: 'adj.', m: '想家的', e: 'He got homesick during the trip.', et: '旅途中他想家了。', lv: 2, th: ['lonely', 'travel'] },
+  { t: 'melancholy', r: '/ˈmelənkɑːli/', p: 'n./adj.', m: '忧郁，伤感', e: 'There is a quiet melancholy in her voice.', et: '她的声音里有一种淡淡的忧伤。', lv: 3, th: ['lonely', 'music'] },
+  { t: 'let down', r: '/let daʊn/', p: 'phr.', m: '让人失望', e: 'I don\'t want to let you down.', et: '我不想让你失望。', lv: 2, th: ['lonely', 'love'], ty: 'phrase' },
+  { t: 'heal', r: '/hiːl/', p: 'v.', m: '治愈，愈合', e: 'Time heals most things.', et: '时间会治愈大部分事情。', lv: 2, th: ['lonely', 'health'] },
+  { t: 'vulnerable', r: '/ˈvʌlnərəbl/', p: 'adj.', m: '脆弱的，易受伤的', e: 'It is okay to feel vulnerable.', et: '感到脆弱没什么不好。', lv: 3, th: ['lonely', 'love'] },
+  { t: 'comfort', r: '/ˈkʌmfərt/', p: 'v./n.', m: '安慰；安慰的事物', e: 'Her words comforted me.', et: '她的话安慰了我。', lv: 1, th: ['lonely', 'love'] },
+  { t: 'bittersweet', r: '/ˌbɪtərˈswiːt/', p: 'adj.', m: '苦乐参半的', e: 'Graduation is always bittersweet.', et: '毕业总是苦乐参半。', lv: 3, th: ['lonely', 'study'] },
+
+  // ===================== 旅行出行 travel =====================
+  { t: 'boarding pass', r: '/ˈbɔːrdɪŋ pæs/', p: 'n.', m: '登机牌', e: 'Please show me your boarding pass.', et: '请出示您的登机牌。', lv: 1, th: ['travel'] },
+  { t: 'departure', r: '/dɪˈpɑːrtʃər/', p: 'n.', m: '出发，离开', e: 'The departure time is 8:30.', et: '出发时间是八点半。', lv: 1, th: ['travel'] },
+  { t: 'itinerary', r: '/aɪˈtɪnəreri/', p: 'n.', m: '行程安排', e: 'Can you send me the itinerary?', et: '能把行程发给我吗？', lv: 3, th: ['travel'] },
+  { t: 'check in', r: '/tʃek ɪn/', p: 'phr.', m: '办理入住 / 值机', e: 'We can check in after 3 p.m.', et: '我们下午三点后可以入住。', lv: 1, th: ['travel'], ty: 'phrase' },
+  { t: 'layover', r: '/ˈleɪoʊvər/', p: 'n.', m: '中途停留，转机', e: 'I have a six-hour layover in Tokyo.', et: '我在东京要转机等六小时。', lv: 2, th: ['travel'] },
+  { t: 'sightseeing', r: '/ˈsaɪtsiːɪŋ/', p: 'n.', m: '观光', e: 'We went sightseeing all day.', et: '我们观光了一整天。', lv: 1, th: ['travel'] },
+  { t: 'get lost', r: '/ɡet lɔːst/', p: 'phr.', m: '迷路', e: 'We got lost on the way back.', et: '回来的路上我们迷路了。', lv: 1, th: ['travel'], ty: 'phrase' },
+  { t: 'accommodation', r: '/əˌkɑːməˈdeɪʃn/', p: 'n.', m: '住宿', e: 'The accommodation was better than expected.', et: '住宿比预期的好。', lv: 2, th: ['travel'] },
+  { t: 'jet lag', r: '/dʒet læɡ/', p: 'n.', m: '时差反应', e: 'I am still suffering from jet lag.', et: '我还在倒时差。', lv: 2, th: ['travel', 'tired'] },
+  { t: 'off the beaten path', r: '/ɔːf ðə ˈbiːtn pæθ/', p: 'phr.', m: '人迹罕至的，小众的', e: 'We found a restaurant off the beaten path.', et: '我们找到一家很小众的餐厅。', lv: 3, th: ['travel', 'food'], ty: 'phrase' },
+  { t: 'reservation', r: '/ˌrezərˈveɪʃn/', p: 'n.', m: '预订', e: 'I have a reservation under Chen.', et: '我用陈这个名字订了位。', lv: 1, th: ['travel', 'food'] },
+
+  // ===================== 美食料理 food =====================
+  { t: 'delicious', r: '/dɪˈlɪʃəs/', p: 'adj.', m: '美味的', e: 'This soup is delicious.', et: '这汤太好喝了。', lv: 1, th: ['food'] },
+  { t: 'appetizer', r: '/ˈæpɪtaɪzər/', p: 'n.', m: '开胃菜，前菜', e: 'We ordered two appetizers.', et: '我们点了两道前菜。', lv: 2, th: ['food'] },
+  { t: 'spicy', r: '/ˈspaɪsi/', p: 'adj.', m: '辣的', e: 'Is this dish very spicy?', et: '这道菜很辣吗？', lv: 1, th: ['food'] },
+  { t: 'takeout', r: '/ˈteɪkaʊt/', p: 'n.', m: '外卖', e: 'Let\'s just order takeout tonight.', et: '今晚我们叫外卖吧。', lv: 1, th: ['food', 'daily'] },
+  { t: 'recipe', r: '/ˈresəpi/', p: 'n.', m: '食谱', e: 'Can you share the recipe?', et: '能把食谱分享给我吗？', lv: 1, th: ['food'] },
+  { t: 'savory', r: '/ˈseɪvəri/', p: 'adj.', m: '咸香的，可口的', e: 'I prefer savory snacks to sweet ones.', et: '比起甜食我更喜欢咸香的零食。', lv: 3, th: ['food'] },
+  { t: 'craving', r: '/ˈkreɪvɪŋ/', p: 'n.', m: '强烈的渴望，嘴馋', e: 'I have a craving for ramen.', et: '我特别想吃拉面。', lv: 2, th: ['food'] },
+  { t: 'leftovers', r: '/ˈleftoʊvərz/', p: 'n.', m: '剩菜剩饭', e: 'I ate the leftovers for lunch.', et: '午饭我吃的是剩菜。', lv: 2, th: ['food', 'daily'] },
+  { t: 'the bill', r: '/ðə bɪl/', p: 'n.', m: '账单', e: 'Could we have the bill, please?', et: '麻烦买单。', lv: 1, th: ['food', 'shopping'] },
+  { t: 'mouthwatering', r: '/ˈmaʊθwɔːtərɪŋ/', p: 'adj.', m: '让人垂涎的', e: 'The photos look mouthwatering.', et: '这些照片看着让人流口水。', lv: 3, th: ['food'] },
+  { t: 'well-done', r: '/ˌwel ˈdʌn/', p: 'adj.', m: '全熟的（牛排）', e: 'I would like my steak well-done.', et: '我的牛排要全熟。', lv: 2, th: ['food'] },
+
+  // ===================== 影视追剧 drama =====================
+  { t: 'episode', r: '/ˈepɪsoʊd/', p: 'n.', m: '一集', e: 'I watched three episodes last night.', et: '我昨晚看了三集。', lv: 1, th: ['drama'] },
+  { t: 'plot', r: '/plɑːt/', p: 'n.', m: '剧情，情节', e: 'The plot gets better in season two.', et: '第二季剧情更好看。', lv: 1, th: ['drama'] },
+  { t: 'binge-watch', r: '/ˈbɪndʒ wɑːtʃ/', p: 'v.', m: '刷剧，一口气看完', e: 'We binge-watched the whole series.', et: '我们一口气刷完了整部剧。', lv: 2, th: ['drama', 'daily'] },
+  { t: 'spoiler', r: '/ˈspɔɪlər/', p: 'n.', m: '剧透', e: 'No spoilers, please!', et: '拜托别剧透！', lv: 2, th: ['drama'] },
+  { t: 'subtitle', r: '/ˈsʌbtaɪtl/', p: 'n.', m: '字幕', e: 'I watch it with English subtitles.', et: '我看的时候开英文字幕。', lv: 1, th: ['drama', 'study'] },
+  { t: 'cliffhanger', r: '/ˈklɪfhæŋər/', p: 'n.', m: '悬念结尾', e: 'The finale ended on a cliffhanger.', et: '大结局留了个悬念。', lv: 3, th: ['drama'] },
+  { t: 'protagonist', r: '/proʊˈtæɡənɪst/', p: 'n.', m: '主角', e: 'The protagonist is a young lawyer.', et: '主角是一位年轻律师。', lv: 3, th: ['drama'] },
+  { t: 'relatable', r: '/rɪˈleɪtəbl/', p: 'adj.', m: '有共鸣的，能感同身受的', e: 'The characters are very relatable.', et: '这些角色很有代入感。', lv: 2, th: ['drama', 'love'] },
+  { t: 'overrated', r: '/ˌoʊvəˈreɪtɪd/', p: 'adj.', m: '被高估的', e: 'Honestly, that show is overrated.', et: '说实话那部剧被高估了。', lv: 2, th: ['drama'] },
+  { t: 'come out', r: '/kʌm aʊt/', p: 'phr.', m: '上映，发布', e: 'The new season comes out in June.', et: '新一季六月上线。', lv: 1, th: ['drama', 'music'], ty: 'phrase' },
+
+  // ===================== 音乐现场 music =====================
+  { t: 'lyrics', r: '/ˈlɪrɪks/', p: 'n.', m: '歌词', e: 'The lyrics are really touching.', et: '这歌词太打动人了。', lv: 1, th: ['music'] },
+  { t: 'melody', r: '/ˈmelədi/', p: 'n.', m: '旋律', e: 'The melody stayed in my head.', et: '这旋律一直在我脑子里回荡。', lv: 2, th: ['music'] },
+  { t: 'catchy', r: '/ˈkætʃi/', p: 'adj.', m: '朗朗上口的', e: 'That chorus is so catchy.', et: '这段副歌太洗脑了。', lv: 2, th: ['music'] },
+  { t: 'concert', r: '/ˈkɑːnsərt/', p: 'n.', m: '演唱会，音乐会', e: 'I went to a concert last weekend.', et: '上周末我去看了演唱会。', lv: 1, th: ['music'] },
+  { t: 'playlist', r: '/ˈpleɪlɪst/', p: 'n.', m: '歌单', e: 'I made a playlist for studying.', et: '我做了一个学习歌单。', lv: 1, th: ['music', 'study'] },
+  { t: 'live performance', r: '/laɪv pərˈfɔːrməns/', p: 'n.', m: '现场演出', e: 'Her live performance was amazing.', et: '她的现场表演太棒了。', lv: 2, th: ['music'] },
+  { t: 'hum', r: '/hʌm/', p: 'v.', m: '哼唱', e: 'He was humming a familiar tune.', et: '他在哼一首熟悉的曲子。', lv: 2, th: ['music'] },
+  { t: 'goosebumps', r: '/ˈɡuːsbʌmps/', p: 'n.', m: '鸡皮疙瘩', e: 'That high note gave me goosebumps.', et: '那个高音让我起鸡皮疙瘩。', lv: 3, th: ['music', 'happy'] },
+  { t: 'on repeat', r: '/ɒn rɪˈpiːt/', p: 'phr.', m: '单曲循环', e: 'This song has been on repeat all week.', et: '这首歌我循环了一整周。', lv: 2, th: ['music'], ty: 'phrase' },
+  { t: 'soundtrack', r: '/ˈsaʊndtræk/', p: 'n.', m: '原声带，配乐', e: 'The soundtrack made the film.', et: '配乐成就了这部电影。', lv: 2, th: ['music', 'drama'] },
+
+  // ===================== 职场工作 work =====================
+  { t: 'schedule', r: '/ˈskedʒuːl/', p: 'n./v.', m: '日程；安排', e: 'Let\'s schedule a meeting for Monday.', et: '我们把会议安排在周一吧。', lv: 1, th: ['work'] },
+  { t: 'colleague', r: '/ˈkɑːliːɡ/', p: 'n.', m: '同事', e: 'My colleague helped me with the report.', et: '我同事帮我做了报告。', lv: 1, th: ['work'] },
+  { t: 'follow up', r: '/ˈfɑːloʊ ʌp/', p: 'phr.', m: '跟进', e: 'I will follow up with the client tomorrow.', et: '我明天跟进客户那边。', lv: 2, th: ['work'], ty: 'phrase' },
+  { t: 'agenda', r: '/əˈdʒendə/', p: 'n.', m: '议程', e: 'What is on the agenda today?', et: '今天的议程是什么？', lv: 2, th: ['work'] },
+  { t: 'delegate', r: '/ˈdelɪɡeɪt/', p: 'v.', m: '委派，授权', e: 'A good manager knows how to delegate.', et: '好的管理者懂得放权。', lv: 3, th: ['work'] },
+  { t: 'workload', r: '/ˈwɜːrkloʊd/', p: 'n.', m: '工作量', e: 'My workload has doubled this month.', et: '我这个月工作量翻倍了。', lv: 2, th: ['work', 'anxious'] },
+  { t: 'brainstorm', r: '/ˈbreɪnstɔːrm/', p: 'v.', m: '头脑风暴', e: 'Let\'s brainstorm some ideas.', et: '我们来头脑风暴一下。', lv: 2, th: ['work'] },
+  { t: 'feedback', r: '/ˈfiːdbæk/', p: 'n.', m: '反馈', e: 'Thanks for the honest feedback.', et: '谢谢你坦诚的反馈。', lv: 1, th: ['work', 'study'] },
+  { t: 'remote work', r: '/rɪˈmoʊt wɜːrk/', p: 'n.', m: '远程办公', e: 'Remote work suits me better.', et: '远程办公更适合我。', lv: 2, th: ['work'] },
+  { t: 'on the same page', r: '/ɒn ðə seɪm peɪdʒ/', p: 'phr.', m: '达成共识', e: 'Let\'s make sure we are on the same page.', et: '我们先确认下达成共识了。', lv: 3, th: ['work'], ty: 'phrase' },
+  { t: 'promotion', r: '/prəˈmoʊʃn/', p: 'n.', m: '晋升', e: 'She got a promotion last month.', et: '她上个月升职了。', lv: 2, th: ['work'] },
+
+  // ===================== 恋爱人际 love =====================
+  { t: 'crush', r: '/krʌʃ/', p: 'n.', m: '暗恋的对象；迷恋', e: 'I had a crush on him in college.', et: '大学时我暗恋过他。', lv: 2, th: ['love'] },
+  { t: 'date', r: '/deɪt/', p: 'n./v.', m: '约会', e: 'We went on a date last Friday.', et: '上周五我们去约会了。', lv: 1, th: ['love'] },
+  { t: 'get along', r: '/ɡet əˈlɔːŋ/', p: 'phr.', m: '相处融洽', e: 'They get along really well.', et: '他们相处得很好。', lv: 1, th: ['love', 'work'], ty: 'phrase' },
+  { t: 'sincere', r: '/sɪnˈsɪr/', p: 'adj.', m: '真诚的', e: 'He gave a sincere apology.', et: '他真诚地道了歉。', lv: 2, th: ['love'] },
+  { t: 'break up', r: '/breɪk ʌp/', p: 'phr.', m: '分手', e: 'They broke up last year.', et: '他们去年分手了。', lv: 1, th: ['love', 'lonely'], ty: 'phrase' },
+  { t: 'considerate', r: '/kənˈsɪdərət/', p: 'adj.', m: '体贴的', e: 'She is very considerate of others.', et: '她很为别人着想。', lv: 2, th: ['love'] },
+  { t: 'chemistry', r: '/ˈkeməstri/', p: 'n.', m: '化学反应，来电', e: 'There is real chemistry between them.', et: '他们之间很来电。', lv: 3, th: ['love'] },
+  { t: 'commitment', r: '/kəˈmɪtmənt/', p: 'n.', m: '承诺，投入', e: 'A relationship requires commitment.', et: '一段关系需要投入和承诺。', lv: 3, th: ['love'] },
+  { t: 'hang out', r: '/hæŋ aʊt/', p: 'phr.', m: '一起玩，消磨时间', e: 'Do you want to hang out this weekend?', et: '周末要一起出去玩吗？', lv: 1, th: ['love', 'daily'], ty: 'phrase' },
+  { t: 'confess', r: '/kənˈfes/', p: 'v.', m: '坦白，告白', e: 'He finally confessed his feelings.', et: '他终于表白了。', lv: 2, th: ['love'] },
+
+  // ===================== 运动健康 health =====================
+  { t: 'workout', r: '/ˈwɜːrkaʊt/', p: 'n.', m: '锻炼', e: 'I do a workout every morning.', et: '我每天早上锻炼。', lv: 1, th: ['health'] },
+  { t: 'stretch', r: '/stretʃ/', p: 'v.', m: '拉伸', e: 'Remember to stretch before running.', et: '跑步前记得拉伸。', lv: 1, th: ['health'] },
+  { t: 'stamina', r: '/ˈstæmɪnə/', p: 'n.', m: '耐力，体力', e: 'Swimming builds stamina.', et: '游泳能增强耐力。', lv: 3, th: ['health'] },
+  { t: 'sore', r: '/sɔːr/', p: 'adj.', m: '酸痛的', e: 'My legs are sore from yesterday.', et: '昨天练完腿现在还酸。', lv: 2, th: ['health'] },
+  { t: 'diet', r: '/ˈdaɪət/', p: 'n.', m: '饮食；节食', e: 'A balanced diet matters more than exercise.', et: '均衡饮食比运动更重要。', lv: 1, th: ['health', 'food'] },
+  { t: 'insomnia', r: '/ɪnˈsɑːmniə/', p: 'n.', m: '失眠', e: 'Stress often causes insomnia.', et: '压力常常导致失眠。', lv: 3, th: ['health', 'anxious'] },
+  { t: 'work out', r: '/wɜːrk aʊt/', p: 'phr.', m: '健身，锻炼', e: 'I work out three times a week.', et: '我一周健身三次。', lv: 1, th: ['health'], ty: 'phrase' },
+  { t: 'immune system', r: '/ɪˈmjuːn ˈsɪstəm/', p: 'n.', m: '免疫系统', e: 'Sleep strengthens your immune system.', et: '睡眠能增强免疫系统。', lv: 3, th: ['health'] },
+  { t: 'get in shape', r: '/ɡet ɪn ʃeɪp/', p: 'phr.', m: '恢复体形，练起来', e: 'I want to get in shape before summer.', et: '我想在夏天前把身材练回来。', lv: 2, th: ['health'], ty: 'phrase' },
+  { t: 'posture', r: '/ˈpɑːstʃər/', p: 'n.', m: '姿势，体态', e: 'Bad posture causes back pain.', et: '姿势不良会导致背痛。', lv: 2, th: ['health', 'work'] },
+
+  // ===================== 购物消费 shopping =====================
+  { t: 'discount', r: '/ˈdɪskaʊnt/', p: 'n.', m: '折扣', e: 'Is there a discount for students?', et: '学生有折扣吗？', lv: 1, th: ['shopping'] },
+  { t: 'refund', r: '/ˈriːfʌnd/', p: 'n./v.', m: '退款', e: 'Can I get a refund for this?', et: '这个可以退款吗？', lv: 1, th: ['shopping'] },
+  { t: 'receipt', r: '/rɪˈsiːt/', p: 'n.', m: '收据，小票', e: 'Please keep your receipt.', et: '请保留好您的小票。', lv: 1, th: ['shopping'] },
+  { t: 'bargain', r: '/ˈbɑːrɡən/', p: 'n.', m: '便宜货，划算的买卖', e: 'This jacket was a real bargain.', et: '这件外套真是捡到了。', lv: 2, th: ['shopping'] },
+  { t: 'out of stock', r: '/aʊt əv stɑːk/', p: 'phr.', m: '缺货', e: 'Sorry, that size is out of stock.', et: '抱歉，那个尺码缺货了。', lv: 1, th: ['shopping'], ty: 'phrase' },
+  { t: 'try on', r: '/traɪ ɒn/', p: 'phr.', m: '试穿', e: 'Can I try this on?', et: '我可以试穿一下吗？', lv: 1, th: ['shopping'], ty: 'phrase' },
+  { t: 'splurge', r: '/splɜːrdʒ/', p: 'v.', m: '挥霍，狠狠花一笔', e: 'I splurged on a new camera.', et: '我狠心买了个新相机。', lv: 3, th: ['shopping'] },
+  { t: 'affordable', r: '/əˈfɔːrdəbl/', p: 'adj.', m: '负担得起的', e: 'The price is quite affordable.', et: '这个价格挺实惠的。', lv: 2, th: ['shopping'] },
+  { t: 'exchange', r: '/ɪksˈtʃeɪndʒ/', p: 'v./n.', m: '更换，交换', e: 'I would like to exchange this for a larger size.', et: '我想换个大一号的。', lv: 1, th: ['shopping'] },
+  { t: 'impulse buy', r: '/ˈɪmpʌls baɪ/', p: 'n.', m: '冲动消费', e: 'It was a total impulse buy.', et: '完全是冲动消费。', lv: 3, th: ['shopping'] },
+
+  // ===================== 科技数码 tech =====================
+  { t: 'update', r: '/ˈʌpdeɪt/', p: 'n./v.', m: '更新', e: 'The app needs an update.', et: '这个应用需要更新。', lv: 1, th: ['tech'] },
+  { t: 'battery life', r: '/ˈbætəri laɪf/', p: 'n.', m: '续航时间', e: 'The battery life is impressive.', et: '续航能力很惊人。', lv: 1, th: ['tech'] },
+  { t: 'glitch', r: '/ɡlɪtʃ/', p: 'n.', m: '小故障，程序错误', e: 'There is a glitch in the system.', et: '系统有个小故障。', lv: 3, th: ['tech'] },
+  { t: 'back up', r: '/bæk ʌp/', p: 'phr.', m: '备份', e: 'Remember to back up your files.', et: '记得备份文件。', lv: 1, th: ['tech', 'work'], ty: 'phrase' },
+  { t: 'user-friendly', r: '/ˈjuːzər ˈfrendli/', p: 'adj.', m: '易用的，好上手的', e: 'The interface is very user-friendly.', et: '界面非常好上手。', lv: 2, th: ['tech'] },
+  { t: 'algorithm', r: '/ˈælɡərɪðəm/', p: 'n.', m: '算法', e: 'The algorithm decides what you see.', et: '算法决定了你看到什么。', lv: 3, th: ['tech'] },
+  { t: 'notification', r: '/ˌnoʊtɪfɪˈkeɪʃn/', p: 'n.', m: '通知', e: 'I turned off all notifications.', et: '我把所有通知都关了。', lv: 2, th: ['tech', 'daily'] },
+  { t: 'crash', r: '/kræʃ/', p: 'v.', m: '崩溃，死机', e: 'My laptop crashed again.', et: '我的笔记本又死机了。', lv: 2, th: ['tech'] },
+  { t: 'sync', r: '/sɪŋk/', p: 'v.', m: '同步', e: 'My notes sync across all devices.', et: '我的笔记在所有设备间同步。', lv: 2, th: ['tech'] },
+  { t: 'cutting-edge', r: '/ˈkʌtɪŋ edʒ/', p: 'adj.', m: '尖端的，前沿的', e: 'They use cutting-edge technology.', et: '他们用的是尖端技术。', lv: 3, th: ['tech'] },
+
+  // ===================== 自然季节 nature =====================
+  { t: 'humid', r: '/ˈhjuːmɪd/', p: 'adj.', m: '潮湿的', e: 'Summer here is hot and humid.', et: '这里的夏天又热又潮。', lv: 1, th: ['nature'] },
+  { t: 'breeze', r: '/briːz/', p: 'n.', m: '微风', e: 'There is a nice breeze tonight.', et: '今晚有阵舒服的微风。', lv: 2, th: ['nature', 'calm'] },
+  { t: 'forecast', r: '/ˈfɔːrkæst/', p: 'n.', m: '预报', e: 'The forecast says it will rain.', et: '天气预报说会下雨。', lv: 1, th: ['nature'] },
+  { t: 'blossom', r: '/ˈblɑːsəm/', p: 'n./v.', m: '花；开花', e: 'The cherry blossoms are beautiful.', et: '樱花开得真美。', lv: 2, th: ['nature', 'travel'] },
+  { t: 'chilly', r: '/ˈtʃɪli/', p: 'adj.', m: '微冷的', e: 'It gets chilly after sunset.', et: '日落后会有点冷。', lv: 1, th: ['nature'] },
+  { t: 'downpour', r: '/ˈdaʊnpɔːr/', p: 'n.', m: '倾盆大雨', e: 'We got caught in a downpour.', et: '我们被暴雨困住了。', lv: 3, th: ['nature'] },
+  { t: 'scenery', r: '/ˈsiːnəri/', p: 'n.', m: '风景', e: 'The scenery along the coast is stunning.', et: '沿海的风景美极了。', lv: 2, th: ['nature', 'travel'] },
+  { t: 'sunset', r: '/ˈsʌnset/', p: 'n.', m: '日落', e: 'We watched the sunset from the hill.', et: '我们在山上看了日落。', lv: 1, th: ['nature', 'calm'] },
+  { t: 'seasonal', r: '/ˈsiːzənl/', p: 'adj.', m: '季节性的', e: 'These are seasonal vegetables.', et: '这些是应季蔬菜。', lv: 2, th: ['nature', 'food'] },
+  { t: 'crisp', r: '/krɪsp/', p: 'adj.', m: '清爽的（空气）', e: 'I love the crisp autumn air.', et: '我喜欢秋天清爽的空气。', lv: 3, th: ['nature'] },
+
+  // ===================== 学习成长 study =====================
+  { t: 'review', r: '/rɪˈvjuː/', p: 'v./n.', m: '复习；回顾', e: 'I review new words every night.', et: '我每晚复习新单词。', lv: 1, th: ['study'] },
+  { t: 'fluent', r: '/ˈfluːənt/', p: 'adj.', m: '流利的', e: 'She is fluent in three languages.', et: '她能流利地说三门语言。', lv: 1, th: ['study'] },
+  { t: 'consistent', r: '/kənˈsɪstənt/', p: 'adj.', m: '持之以恒的，一致的', e: 'Being consistent matters more than being fast.', et: '坚持比速度更重要。', lv: 2, th: ['study', 'energetic'] },
+  { t: 'vocabulary', r: '/vəˈkæbjəleri/', p: 'n.', m: '词汇量', e: 'Reading expands your vocabulary.', et: '阅读能扩大词汇量。', lv: 1, th: ['study'] },
+  { t: 'grasp', r: '/ɡræsp/', p: 'v./n.', m: '掌握，理解', e: 'It took me a while to grasp the concept.', et: '我花了点时间才理解这个概念。', lv: 2, th: ['study'] },
+  { t: 'procrastinate', r: '/proʊˈkræstɪneɪt/', p: 'v.', m: '拖延', e: 'I always procrastinate before deadlines.', et: '截止日期前我总是拖延。', lv: 3, th: ['study', 'anxious'] },
+  { t: 'make progress', r: '/meɪk ˈprɑːɡres/', p: 'phr.', m: '取得进步', e: 'You are making real progress.', et: '你确实在进步。', lv: 1, th: ['study'], ty: 'phrase' },
+  { t: 'immerse', r: '/ɪˈmɜːrs/', p: 'v.', m: '沉浸', e: 'Immerse yourself in the language.', et: '让自己沉浸在语言环境里。', lv: 3, th: ['study'] },
+  { t: 'retain', r: '/rɪˈteɪn/', p: 'v.', m: '记住，保持', e: 'Repetition helps you retain information.', et: '重复有助于记住信息。', lv: 3, th: ['study'] },
+  { t: 'pick up', r: '/pɪk ʌp/', p: 'phr.', m: '学会，习得', e: 'He picked up Korean while living in Seoul.', et: '他在首尔生活时学会了韩语。', lv: 2, th: ['study', 'travel'], ty: 'phrase' },
+
+  // ===================== 日常生活 daily =====================
+  { t: 'chore', r: '/tʃɔːr/', p: 'n.', m: '家务活', e: 'I hate doing household chores.', et: '我讨厌做家务。', lv: 2, th: ['daily'] },
+  { t: 'errand', r: '/ˈerənd/', p: 'n.', m: '跑腿，杂事', e: 'I have a few errands to run.', et: '我有几件杂事要办。', lv: 3, th: ['daily'] },
+  { t: 'routine', r: '/ruːˈtiːn/', p: 'n.', m: '日常习惯', e: 'My morning routine is simple.', et: '我的晨间routine很简单。', lv: 1, th: ['daily', 'health'] },
+  { t: 'tidy up', r: '/ˈtaɪdi ʌp/', p: 'phr.', m: '收拾整理', e: 'Let me tidy up the room first.', et: '我先收拾一下房间。', lv: 1, th: ['daily'], ty: 'phrase' },
+  { t: 'run out of', r: '/rʌn aʊt əv/', p: 'phr.', m: '用完，耗尽', e: 'We ran out of milk.', et: '牛奶用完了。', lv: 1, th: ['daily', 'shopping'], ty: 'phrase' },
+  { t: 'commute', r: '/kəˈmjuːt/', p: 'n./v.', m: '通勤', e: 'My commute takes an hour.', et: '我通勤要一小时。', lv: 2, th: ['daily', 'work'] },
+  { t: 'laundry', r: '/ˈlɔːndri/', p: 'n.', m: '要洗的衣物；洗衣', e: 'I need to do the laundry today.', et: '我今天得洗衣服。', lv: 1, th: ['daily'] },
+  { t: 'stay up', r: '/steɪ ʌp/', p: 'phr.', m: '熬夜', e: 'I stayed up until 2 a.m.', et: '我熬到凌晨两点。', lv: 1, th: ['daily', 'tired'], ty: 'phrase' },
+  { t: 'household', r: '/ˈhaʊshoʊld/', p: 'n./adj.', m: '家庭；家用的', e: 'These are household items.', et: '这些是家用物品。', lv: 2, th: ['daily'] },
+  { t: 'get around to', r: '/ɡet əˈraʊnd tuː/', p: 'phr.', m: '抽出时间做', e: 'I finally got around to cleaning.', et: '我终于抽出时间打扫了。', lv: 3, th: ['daily'], ty: 'phrase' }
+];
