@@ -1,0 +1,7 @@
+build_out/
+node_modules/
+_*/
+_*.js
+_*.py
+*.bak
+*.exe
