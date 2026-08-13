@@ -1894,11 +1894,16 @@
               $('#clOk').onclick = () => {
                 Store.state.entries = [];
                 Store.state.checkins = {};
+                // 清除数据时同时关闭 GitHub 同步，避免本地清空后又被云端 Gist 拉回
+                if (Store.state.settings.gistSync) {
+                  Store.state.settings.gistSync = false;
+                  Store.disableGist();
+                }
                 Store.commit();
                 close();
                 if (ui.view === 'review') buildReviewQueue();
                 render();
-                toast('学习记录已清空', 'ok');
+                toast('学习记录已清空，GitHub 同步已自动关闭', 'ok');
               };
             }
           });
