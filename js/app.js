@@ -517,9 +517,9 @@
   // ============================================================
 
   function renderEntry(e) {
-    const L = LANGS[e.lang];
+    const L = LANGS[e.lang] || LANGS.en;
     const T = TYPES[e.type] || TYPES.word;
-    const lv = LEVELS[e.level];
+    const lv = LEVELS[e.level] || LEVELS[0];
     const dueIn = daysBetween(todayKey(), e.srs.nextReview);
     const dueText = dueIn <= 0 ? '待复习' : `${dueIn}天后复习`;
     const spk = (txt, lang) => txt

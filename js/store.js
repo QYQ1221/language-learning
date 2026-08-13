@@ -257,6 +257,7 @@
     _migrate() {
       // 保证每条数据结构完整，避免旧数据缺字段导致渲染异常
       this.state.entries.forEach(e => {
+        if (!LANGS[e.lang]) e.lang = 'en';   // 修复非法/缺失的语言字段，避免渲染崩溃
         if (!e.srs) e.srs = { stage: 0, nextReview: todayKey(), reviews: 0, lapses: 0 };
       if (typeof e.level !== 'number') e.level = 0;
       if (!Array.isArray(e.tags)) e.tags = [];
