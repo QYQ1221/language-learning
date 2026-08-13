@@ -328,8 +328,12 @@
     _applyRemote(remoteState) {
       if (!remoteState || typeof remoteState !== 'object') return false;
       if (remoteState.updatedAt && this.state.updatedAt === remoteState.updatedAt) return false; // 回声去重
+      const keepToken = this.state.settings.gistToken;   // 远端 Gist 不含 token，保留本地凭证避免刷新后重连失败
+      const keepKey = this.state.settings.gistKey;
       this.state = Object.assign(defaultState(), remoteState);
       this.state.settings = Object.assign(defaultState().settings, remoteState.settings || {});
+      this.state.settings.gistToken = keepToken;
+      this.state.settings.gistKey = keepKey;
       this._migrate();
       this._mirrorLocal();       // 镜像到本地，云端离线也能恢复
       return true;
@@ -367,21 +371,22 @@
         }
         this._mirrorLocal();
       } else {
+        // 连接已有 Gist：先拉取远端并合并（保留本地独有条目），再把合并后的完整数据写回云端，实现双向同步
         const remote = await GistAdapter.load();
         if (remote && typeof remote === 'object') {
           this.state = this._mergeForCloud(remote);
-          this._migrate();
-          this.commit();
-          this._mirrorLocal();
-        } else {
-          const okSave = await GistAdapter.save(this.state);
-          if (!okSave) {
-            this._gistError = '写入 Gist 失败（同步码对应的 Gist 不存在，或 Token 无 gist 权限）：' + (GistAdapter.error || '');
-            this.useAdapter(LocalAdapter);
-            return false;
-          }
-          this._mirrorLocal();
         }
+        this.state.settings.gistToken = token;   // 防止被云端剥离后的空 token 覆盖，刷新后才能正常重连
+        this.state.settings.gistKey = key;
+        this._migrate();
+        const okSave = await GistAdapter.save(this.state);
+        if (!okSave) {
+          this._gistError = '写入 Gist 失败（同步码对应的 Gist 不存在，或 Token 无 gist 权限）：' + (GistAdapter.error || '');
+          this.useAdapter(LocalAdapter);
+          return false;
+        }
+        this.commit();
+        this._mirrorLocal();
       }
       if (this._gistUnsub) { try { this._gistUnsub(); } catch (e) {} }
       this._gistUnsub = GistAdapter.subscribe((remoteState) => {
