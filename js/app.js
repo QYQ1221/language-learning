@@ -1895,9 +1895,9 @@
             <button class="btn btn-xs btn-ghost" type="button" data-ai-preset="silicon">硅基流动</button>
           </div>
           <button class="btn btn-sm btn-ghost" id="setAiTest" type="button" style="margin-top:8px">🧪 测试 AI 连接</button>
-          <div style="font-size:11px;color:var(--text-3);margin-top:6px">🔒 你的 API Key 仅保存在本机浏览器，<b>不会写入同步 Gist、不经过任何中转服务器</b>；学习数据只存于你自己的私人 Gist 与本地，不会被他人获取。点上方厂商按钮会自动填好接口地址与模型名，你只需填写 Key（光标会自动跳到 Key 框）。</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:6px">🔒 API Key 仅存本机浏览器，不会上传。点上方厂商按钮可自动填入接口与模型，再填 Key 即可。</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:6px">支持 OpenAI 兼容接口；地址需为 https，且服务端允许浏览器跨域（CORS）。开启后自动生成主题词包，手动加词也可一键补全释义/例句/读音。</div>
           <pre id="setAiTestResult" style="display:none;margin-top:8px;font-size:11px;background:var(--bg-2);padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;color:var(--text-2);max-height:160px;overflow:auto"></pre>
-          <div style="font-size:11px;color:var(--text-3);margin-top:6px">OpenAI 兼容接口即可（OpenAI / DeepSeek / 通义 / Moonshot 等）。Key 不上传服务器、仅浏览器直连。<b style="color:var(--warn)">注意：浏览器直连要求接口支持跨域（CORS）</b>——官方接口通常允许；若用中转/自建代理，需其返回 <code>Access-Control-Allow-Origin</code> 放行本站来源，否则会"网络请求失败"。接口地址务必用 <b>https</b>（本页是 HTTPS，调 http 会被混合内容拦截）。开启后：生成学习会按主题自动补词；手动加词可一键补全释义/例句/读音。</div>
         </div>
       </div>
       <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:14px">
@@ -2022,8 +2022,7 @@
                 '模型：' + r.model,
                 'HTTP 状态：' + (r.status || '无') + (r.ok ? ' ✅' : ' ❌'),
                 r.err ? '网络错误：' + r.err : '',
-                '原始响应前 300 字：',
-                r.raw ? r.raw.slice(0, 300) : '(空)'
+                r.ok ? '' : '响应前 200 字：' + (r.raw ? r.raw.slice(0, 200) : '(空)')
               ].filter(Boolean);
               aiTestRes.textContent = lines.join('\n');
             } catch (err) {
