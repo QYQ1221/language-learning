@@ -1142,8 +1142,15 @@
     if (t.closest('#btnSurprise')) { startLearn([LangThemes.suggestTheme(todayKey())]); return; }
     if (t.closest('#btnManualAdd')) { openManualAdd(); return; }
     if (t.closest('#btnBackTheme')) { pauseTimer(); ui.learn = null; ui.learnDismissed = true; persistLearn(); render(); return; }  // 主动换主题：清空持久化会话并优先展示选择器
-    if (t.closest('#btnReshuffle')) { pauseTimer(); ui.learn.salt = (ui.learn.salt || 0) + 1; regenerateLearn(); persistLearn(); render(); return; }
-    if (t.closest('#btnFinishLater')) { pauseTimer(); ui.learn = null; render(); toast('已保存进度，随时继续', 'ok'); return; }  // 保留 learnSession，下次进入 capture 自动恢复
+    if (t.closest('#btnReshuffle')) {
+      pauseTimer();
+      ui.learn.salt = (ui.learn.salt || 0) + 1;
+      persistLearn();      // 先锁定新 salt：避免 regenerate 内部 render 触发 renderCapture 旧会话恢复，把「换一批」撤销
+      regenerateLearn();
+      persistLearn();      // 保存新词包
+      render(); return;
+    }
+    if (t.closest('#btnFinishLater')) { pauseTimer(); persistLearn(); ui.learn = null; render(); toast('已保存进度，随时继续', 'ok'); return; }  // 保留 learnSession（含词包），下次进入 capture 自动恢复相同内容
 
     if (t.closest('#btnViewStats')) { ui.learn = null; switchView('stats'); return; }
     const lb = t.closest('.learn-btn');
@@ -1294,10 +1301,13 @@
     };
     persistLearn();        // 先落盘：保证随后 regenerateLearn 内的 render 时，Store.state.learnSession 已是新会话（身份一致），不会被旧云端/本地会话覆盖
     regenerateLearn();
+    persistLearn();        // 再落盘：保存刚生成的词包本身，保证「稍后再学」重开得到完全相同的词
   }
 
   // 把内存中的今日学习会话序列化进 Store.state.learnSession（持久化 + 参与 GitHub 同步）。
   // 注意：计时 activeStart 等临时态不入；added 是 Set 需转数组；不含任何 Token/Key。
+  // 关键：连同「词包 pack 本身」一起保存，保证「稍后再学」后重开得到完全相同的词与进度，
+  // 而不是按 learned 集合重新生成（那样刚学过的词会被排除导致内容变化）。
   function persistLearn() {
     const L = ui.learn;
     if (!L) {
@@ -1306,6 +1316,11 @@
       return;
     }
     ensureDur(L);
+    const pack = {};
+    ['en', 'ja', 'ko'].forEach(lg => {
+      pack[lg] = (L.pack[lg] || []).map(x => Object.assign({}, x));   // 深拷贝，避免与内存引用纠缠
+    });
+    const total = (pack.en.length) + (pack.ja.length) + (pack.ko.length);
     Store.state.learnSession = {
       date: todayKey(),
       updatedAt: Date.now(),    // 会话时间戳：用于跨端冲突解决（本地更新则不被旧云端数据覆盖）
@@ -1318,19 +1333,20 @@
       langCheckedIn: Object.assign({}, L.langCheckedIn),
       dur: Object.assign({ en: 0, ja: 0, ko: 0 }, L.dur),
       added: Array.from(L.added || []),
-      judged: Object.assign({}, L.judged)
+      judged: Object.assign({}, L.judged),
+      pack, total
     };
     Store.commit();
   }
 
-  // 从持久化/同步来的 learnSession 恢复内存会话（pack 由 entries 实时重建）
+  // 从持久化/同步来的 learnSession 恢复内存会话
   function restoreLearn() {
     const s = Store.state.learnSession;
     if (!s || s.date !== todayKey()) { ui.learn = null; return; }
     // 过滤掉云端/旧版本中可能已失效的主题 key，避免渲染时取 THEME_MAP[k] 为 undefined 而崩溃
     const themes = (s.themes || []).filter(k => LangThemes.THEME_MAP[k]);
     if (!themes.length) { ui.learn = null; Store.state.learnSession = null; return; }
-    ui.learn = {
+    const L = {
       date: todayKey(),
       themes: themes,
       salt: s.salt || 0,
@@ -1346,7 +1362,22 @@
       langCheckedIn: Object.assign({ en: false, ja: false, ko: false }, s.langCheckedIn),
       aiLoading: false
     };
-    regenerateLearn();
+    ui.learn = L;
+    // 优先直接复用已持久化的词包（完全相同的词与进度），仅旧版本无 pack 时才重新生成
+    if (s.pack && ((s.pack.en || []).length || (s.pack.ja || []).length || (s.pack.ko || []).length)) {
+      L.pack = {
+        en: (s.pack.en || []).map(x => Object.assign({}, x)),
+        ja: (s.pack.ja || []).map(x => Object.assign({}, x)),
+        ko: (s.pack.ko || []).map(x => Object.assign({}, x))
+      };
+      L.total = L.pack.en.length + L.pack.ja.length + L.pack.ko.length;
+      ensureDur(L);
+      const focusLang = (L.focus === 'all') ? L.order[0] : (L.focus || L.order[0]);
+      startTimer(focusLang);
+      render();
+    } else {
+      regenerateLearn();
+    }
   }
 
   // ---------- 学习计时（按语言） ----------
@@ -1600,6 +1631,7 @@
     }
     L.added.add(bankId);
     L.judged[bankId] = judge;
+    persistLearn();   // 实时保存进度（词包 + 已学集合），保证「稍后再学」重开内容完全一致
 
     // 当前语言 10 词学完 → 自动弹出完成打卡
     const cur = item.lang;
@@ -1884,20 +1916,20 @@
           </label>
         </div>
         <div id="aiCfg" style="${(s.ai && s.ai.enabled) ? '' : 'display:none'}">
-          <input type="text" id="setAiBase" class="input" placeholder="接口地址，如 https://api.openai.com/v1" value="${esc((s.ai && s.ai.baseUrl) || '')}" style="width:100%;margin-top:10px">
-          <input type="text" id="setAiKey" class="input" placeholder="API Key（仅存本机浏览器，不上传）" value="${esc((s.ai && s.ai.apiKey) || '')}" style="width:100%;margin-top:8px">
-          <input type="text" id="setAiModel" class="input" placeholder="模型名，如 gpt-4o-mini / deepseek-chat" value="${esc((s.ai && s.ai.model) || '')}" style="width:100%;margin-top:8px">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
             <span style="font-size:11px;color:var(--text-3)">一键填入接口与模型：</span>
             <button class="btn btn-xs btn-ghost" type="button" data-ai-preset="zhipu">智谱</button>
             <button class="btn btn-xs btn-ghost" type="button" data-ai-preset="deepseek">DeepSeek</button>
             <button class="btn btn-xs btn-ghost" type="button" data-ai-preset="volc">火山引擎</button>
             <button class="btn btn-xs btn-ghost" type="button" data-ai-preset="silicon">硅基流动</button>
           </div>
-          <button class="btn btn-sm btn-ghost" id="setAiTest" type="button" style="margin-top:8px">🧪 测试 AI 连接</button>
-          <div style="font-size:11px;color:var(--text-3);margin-top:6px">🔒 API Key 仅存本机浏览器，不会上传。点上方厂商按钮可自动填入接口与模型，再填 Key 即可。</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:6px">支持 OpenAI 兼容接口；地址需为 https，且服务端允许浏览器跨域（CORS）。开启后自动生成主题词包，手动加词也可一键补全释义/例句/读音。</div>
+          <input type="text" id="setAiBase" class="input" placeholder="接口地址，如 https://api.openai.com/v1" value="${esc((s.ai && s.ai.baseUrl) || '')}" style="width:100%">
+          <input type="text" id="setAiKey" class="input" placeholder="API Key（仅存本机浏览器，不上传）" value="${esc((s.ai && s.ai.apiKey) || '')}" style="width:100%;margin-top:8px">
+          <input type="text" id="setAiModel" class="input" placeholder="模型名，如 gpt-4o-mini / deepseek-chat" value="${esc((s.ai && s.ai.model) || '')}" style="width:100%;margin-top:8px">
+          <button class="btn btn-sm btn-ghost" id="setAiTest" type="button" style="margin-top:10px">🧪 测试 AI 连接</button>
           <pre id="setAiTestResult" style="display:none;margin-top:8px;font-size:11px;background:var(--bg-2);padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;color:var(--text-2);max-height:160px;overflow:auto"></pre>
+          <div style="font-size:11px;color:var(--text-3);margin-top:8px">🔒 API Key 仅存本机浏览器，不会上传。点上方厂商按钮可自动填入接口与模型，再填 Key 即可。</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:6px">支持 OpenAI 兼容接口；地址需为 https，且服务端允许浏览器跨域（CORS）。开启后自动生成主题词包，手动加词也可一键补全释义/例句/读音。</div>
         </div>
       </div>
       <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:14px">
