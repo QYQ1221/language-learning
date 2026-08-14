@@ -1040,7 +1040,7 @@ button, input, textarea, select {
   align-items: center;
   flex-wrap: wrap;
 }
-.filter-controls .select { width: auto; min-width: 132px; }  /* 全部类型/全部掌握度/全部标签 三个下拉等宽 */
+.filter-controls .select { width: 140px; min-width: 140px; text-overflow: ellipsis; }  /* 全部类型/全部掌握度/全部标签 三个下拉等宽 */
 
 /* 历史页展开/折叠按钮组（桌面与移动端共用同一个 #btnExpandAll / #btnCollapseAll） */
 .hist-expand-desktop { display: inline-flex; gap: 8px; }
