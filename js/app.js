@@ -592,30 +592,34 @@
 
     return `
       <div class="filter-bar">
-        <div class="search-box">
-          ${icon('i-search')}
-          <input class="input" id="searchInput" placeholder="搜索原文、释义、例句、来源、标签…"
-                 value="${esc(ui.filter.q)}" autocomplete="off">
+        <div class="filter-search-wrap">
+          <div class="search-box">
+            ${icon('i-search')}
+            <input class="input" id="searchInput" placeholder="搜索原文、释义、例句、来源、标签…"
+                   value="${esc(ui.filter.q)}" autocomplete="off">
+          </div>
         </div>
-        <select class="select" id="filterType" style="width:auto;min-width:100px">
-          <option value="all">全部类型</option>
-          ${Object.values(TYPES).map(t =>
-            `<option value="${t.key}" ${ui.filter.type === t.key ? 'selected' : ''}>${t.name}</option>`
-          ).join('')}
-        </select>
-        <select class="select" id="filterLevel" style="width:auto;min-width:100px">
-          <option value="all">全部掌握度</option>
-          ${LEVELS.map(l =>
-            `<option value="${l.v}" ${String(ui.filter.level) === String(l.v) ? 'selected' : ''}>${l.name}</option>`
-          ).join('')}
-        </select>
-        ${tags.length ? `
-        <select class="select" id="filterTag" style="width:auto;min-width:100px">
-          <option value="">全部标签</option>
-          ${tags.map(t => `<option value="${esc(t)}" ${ui.filter.tag === t ? 'selected' : ''}>#${esc(t)}</option>`).join('')}
-        </select>` : ''}
-        <button class="btn btn-sm" id="btnExpandAll">展开全部</button>
-        <button class="btn btn-sm" id="btnCollapseAll">全部折叠</button>
+        <div class="filter-controls">
+          <select class="select" id="filterType">
+            <option value="all">全部类型</option>
+            ${Object.values(TYPES).map(t =>
+              `<option value="${t.key}" ${ui.filter.type === t.key ? 'selected' : ''}>${t.name}</option>`
+            ).join('')}
+          </select>
+          <select class="select" id="filterLevel">
+            <option value="all">全部掌握度</option>
+            ${LEVELS.map(l =>
+              `<option value="${l.v}" ${String(ui.filter.level) === String(l.v) ? 'selected' : ''}>${l.name}</option>`
+            ).join('')}
+          </select>
+          ${tags.length ? `
+          <select class="select" id="filterTag">
+            <option value="">全部标签</option>
+            ${tags.map(t => `<option value="${esc(t)}" ${ui.filter.tag === t ? 'selected' : ''}>#${esc(t)}</option>`).join('')}
+          </select>` : ''}
+          <button class="btn btn-icon btn-ghost" id="btnExpandAll" title="展开全部"><svg><use href="#i-expand"/></svg></button>
+          <button class="btn btn-icon btn-ghost" id="btnCollapseAll" title="全部折叠"><svg><use href="#i-collapse"/></svg></button>
+        </div>
       </div>
 
       <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">
@@ -970,6 +974,8 @@
     };
     $('#btnTheme').onclick = toggleTheme;
     $('#btnThemeMobile').onclick = toggleTheme;
+    const topSyncBtn = $('#btnSyncCloudTop');
+    if (topSyncBtn) topSyncBtn.onclick = syncNowCloud;
 
     // 手动同步到云端（点一下立即双向同步：推本地 + 拉远端，弥补 20s 轮询不及时）
     const syncNowCloud = async () => {
@@ -983,7 +989,7 @@
         toast('同步凭证缺失，请检查设置中的 Token 与同步码', 'warn');
         return;
       }
-      const btns = $$('#btnSyncCloud, #setSyncCloud');
+      const btns = $$('#btnSyncCloud, #setSyncCloud, #btnSyncCloudTop');
       btns.forEach(b => { if (b) b.disabled = true; });
       Store._setStatus('saving');
       try {
@@ -1799,8 +1805,8 @@
         <div id="gistCfg" style="${s.gistSync ? '' : 'display:none'}">
           <input type="text" id="setGistToken" class="input" placeholder="GitHub Token（仅勾 gist 权限，存本机）" value="${esc(s.gistToken || '')}" style="width:100%;margin-top:10px">
           <input type="text" id="setGistKey" class="input" placeholder="同步码（Gist ID；留空则自动新建，多端填同一个）" value="${esc(s.gistKey || '')}" style="width:100%;margin-top:8px">
-          <div style="font-size:11px;color:var(--text-3);margin-top:6px">无需任何付费云服务：用免费 GitHub 账号生成一个 Personal Access Token（只勾 <code>gist</code> 权限）填上方即可。手机和电脑填<b>同一个 Token + 同一个同步码</b>即双向实时同步。数据存于你的私人 Gist，仅你自己可读。</div>
           <button class="btn btn-sm btn-primary" id="setSyncCloud" type="button" style="margin-top:10px"><svg class="ic"><use href="#i-sync"/></svg> 同步到云端</button>
+          <div style="font-size:11px;color:var(--text-3);margin-top:6px">无需任何付费云服务：用免费 GitHub 账号生成一个 Personal Access Token（只勾 <code>gist</code> 权限）填上方即可。手机和电脑填<b>同一个 Token + 同一个同步码</b>即双向实时同步。数据存于你的私人 Gist，仅你自己可读。</div>
         </div>
       </div>
       <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:14px">
@@ -2413,25 +2419,43 @@
   // ============================================================
 
   async function boot() {
-    await Store.init();
-    loadDraft();
+    try {
+      await Store.init();
+      loadDraft();
 
-    applyTheme(Store.state.settings.theme || 'light');
-    ui.lang = Store.state.settings.activeLang || 'all';
+      applyTheme(Store.state.settings.theme || 'light');
+      ui.lang = Store.state.settings.activeLang || 'all';
 
-    bindGlobal();
-    bindSyncStatus();
-    // 若已开启 GitHub 同步，启动后自动接入（失败则降级本地，不打断使用）
-    if (Store.state.settings.gistSync && Store.state.settings.gistToken) {
-      const ok = await Store.enableGist(Store.state.settings.gistToken, Store.state.settings.gistKey);
-      if (!ok) toast('GitHub 同步连接失败：' + (Store._gistError || '未知') + '（已用本地数据）', 'warn');
-    }
-    Store.onRemote = () => render();
-    render();
+      bindGlobal();
+      bindSyncStatus();
+      // 若已开启 GitHub 同步，启动后自动接入（失败则降级本地，不打断使用）
+      if (Store.state.settings.gistSync && Store.state.settings.gistToken) {
+        const ok = await Store.enableGist(Store.state.settings.gistToken, Store.state.settings.gistKey);
+        if (!ok) toast('GitHub 同步连接失败：' + (Store._gistError || '未知') + '（已用本地数据）', 'warn');
+      }
+      Store.onRemote = () => render();
+      render();
 
-    // 注册 Service Worker（离线可用 + 可安装）
-    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      // 注册 Service Worker（离线可用 + 可安装）
+      if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      }
+    } catch (err) {
+      console.error('boot failed', err);
+      const content = $('#content');
+      if (content) {
+        content.innerHTML = `
+          <div class="card" style="margin-top:20px">
+            <div class="empty">
+              <div class="empty-icon">⚠️</div>
+              <div class="empty-title">页面加载出错</div>
+              <div class="empty-text" style="text-align:left;max-width:560px;margin:0 auto">
+                错误信息：${esc(err && err.message ? err.message : String(err))}<br>
+                请尝试：<b>硬刷新</b>（QQ浏览器点刷新按钮往上滑选「强制刷新」或清除缓存后重开），或在「设置 - 数据管理」里清除数据后刷新。
+              </div>
+            </div>
+          </div>`;
+      }
     }
   }
 

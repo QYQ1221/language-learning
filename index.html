@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="语言学习工作台">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/styles.css?v=20260814a">
 </head>
 <body>
 
@@ -70,6 +70,12 @@
   </symbol>
   <symbol id="i-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>
+  </symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 13l5 5 5-5M7 6l5 5 5-5"/>
+  </symbol>
+  <symbol id="i-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 11l5-5 5 5M7 18l5-5 5 5"/>
   </symbol>
   <symbol id="i-volume" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M18.5 5.5a9 9 0 010 13"/>
@@ -144,6 +150,9 @@
         <button class="btn btn-icon btn-ghost" id="btnThemeMobile" title="切换主题">
           <svg><use href="#i-moon"/></svg>
         </button>
+        <button class="btn btn-icon btn-ghost" id="btnSyncCloudTop" title="立即把本机数据上传到云端并拉取其它端改动">
+          <svg><use href="#i-sync"/></svg>
+        </button>
       </div>
     </header>
 
@@ -178,6 +187,6 @@
 <script src="js/wb-ja.js"></script>
 <script src="js/wb-ko.js"></script>
 <script src="js/ai.js?v=20260813e"></script>
-<script src="js/app.js?v=20260814i"></script>
+<script src="js/app.js?v=20260814j"></script>
 </body>
 </html>
