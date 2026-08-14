@@ -286,6 +286,7 @@
           if (typeof rec.minutes !== 'number') rec.minutes = 0;
         }
       }
+      this._fixLearnSession();
     },
 
     useAdapter(adapter) {
@@ -322,6 +323,7 @@
       if (this.state.learnSession && this.state.learnSession.date === todayKey()) {
         base.learnSession = this.state.learnSession;
       }
+      this._fixLearnSession(base);
       return base;
     },
 
@@ -343,9 +345,28 @@
       this.state.settings.gistKey = keepKey;
       // 远端 Gist 中的 ai.apiKey 始终为空（上传前已剥离），此处用本地 Key 覆盖，确保 Key 永不被同步清空
       this.state.settings.ai = Object.assign({}, this.state.settings.ai || {}, { apiKey: keepAiKey });
+      this._fixLearnSession();
       this._migrate();
       this._mirrorLocal();       // 镜像到本地，云端离线也能恢复
       return true;
+    },
+
+    /** 修正 learnSession 中可能为 null/undefined 的字段，避免渲染端崩溃 */
+    _fixLearnSession(state) {
+      state = state || this.state;
+      const ls = state.learnSession;
+      if (!ls || typeof ls !== 'object') return;
+      if (!ls.dur || typeof ls.dur !== 'object') ls.dur = { en: 0, ja: 0, ko: 0 };
+      ['en', 'ja', 'ko'].forEach(lg => { if (typeof ls.dur[lg] !== 'number') ls.dur[lg] = 0; });
+      if (!Array.isArray(ls.themes)) ls.themes = [];
+      if (typeof ls.salt !== 'number') ls.salt = 0;
+      if (!Array.isArray(ls.added)) ls.added = [];
+      if (!ls.judged || typeof ls.judged !== 'object') ls.judged = {};
+      if (!Array.isArray(ls.order)) ls.order = ['en', 'ja', 'ko'];
+      if (typeof ls.idx !== 'number') ls.idx = 0;
+      if (!ls.focus) ls.focus = 'en';
+      if (!ls.langDone || typeof ls.langDone !== 'object') ls.langDone = { en: false, ja: false, ko: false };
+      if (!ls.langCheckedIn || typeof ls.langCheckedIn !== 'object') ls.langCheckedIn = { en: false, ja: false, ko: false };
     },
 
 

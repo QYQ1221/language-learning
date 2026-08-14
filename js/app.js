@@ -183,6 +183,10 @@
   function renderCapture() {
     const s = Store.state.learnSession;
     const today = todayKey();
+    // 若云端/持久化没有今日会话，内存中也不应残留旧会话（避免 dur 等字段为空导致崩溃）
+    if (ui.learn && (!s || s.date !== today)) {
+      ui.learn = null;
+    }
     // 跨端心情同步：云端/持久化的今日会话与本地内存会话「身份」不同（其他设备改了心情），
     // 则采用云端会话，避免手机端一直显示自己之前选的心情。身份相同则保留本机进度（不打断学习）。
     if (s && s.date === today) {
@@ -1288,6 +1292,7 @@
       Store.commit();
       return;
     }
+    ensureDur(L);
     Store.state.learnSession = {
       date: todayKey(),
       themes: L.themes.slice(),
@@ -1297,7 +1302,7 @@
       idx: L.idx || 0,
       langDone: Object.assign({}, L.langDone),
       langCheckedIn: Object.assign({}, L.langCheckedIn),
-      dur: Object.assign({}, L.dur),
+      dur: Object.assign({ en: 0, ja: 0, ko: 0 }, L.dur),
       added: Array.from(L.added || []),
       judged: Object.assign({}, L.judged)
     };
@@ -1312,6 +1317,7 @@
     const themes = (s.themes || []).filter(k => LangThemes.THEME_MAP[k]);
     if (!themes.length) { ui.learn = null; Store.state.learnSession = null; return; }
     ui.learn = {
+      date: todayKey(),
       themes: themes,
       salt: s.salt || 0,
       added: new Set(s.added || []),
@@ -1320,7 +1326,7 @@
       order: (s.order || ['en', 'ja', 'ko']).slice(),
       idx: s.idx || 0,
       focus: s.focus || 'en',
-      dur: Object.assign({ en: 0, ja: 0, ko: 0 }, s.dur),
+      dur: Object.assign({ en: 0, ja: 0, ko: 0 }, s.dur || {}),
       activeLang: null, activeStart: 0,
       langDone: Object.assign({ en: false, ja: false, ko: false }, s.langDone),
       langCheckedIn: Object.assign({ en: false, ja: false, ko: false }, s.langCheckedIn),
@@ -1330,27 +1336,37 @@
   }
 
   // ---------- 学习计时（按语言） ----------
+  function ensureDur(L) {
+    if (!L) return null;
+    if (!L.dur || typeof L.dur !== 'object') L.dur = { en: 0, ja: 0, ko: 0 };
+    ['en', 'ja', 'ko'].forEach(lg => { if (typeof L.dur[lg] !== 'number') L.dur[lg] = 0; });
+    return L.dur;
+  }
   function pauseTimer() {
     const L = ui.learn;
     if (!L || !L.activeLang || !L.activeStart) return;
-    L.dur[L.activeLang] = (L.dur[L.activeLang] || 0) + Math.floor((Date.now() - L.activeStart) / 1000);
+    const dur = ensureDur(L);
+    dur[L.activeLang] = (dur[L.activeLang] || 0) + Math.floor((Date.now() - L.activeStart) / 1000);
     L.activeStart = 0; L.activeLang = null;
   }
   function startTimer(lang) {
     const L = ui.learn;
     if (!L) return;
+    ensureDur(L);
     L.activeLang = lang; L.activeStart = Date.now();
   }
   function langSeconds(lang) {
     const L = ui.learn;
     if (!L) return 0;
-    let s = L.dur[lang] || 0;
+    const dur = ensureDur(L);
+    let s = dur[lang] || 0;
     if (L.activeLang === lang && L.activeStart) s += Math.floor((Date.now() - L.activeStart) / 1000);
     return s;
   }
   function totalSeconds() {
     const L = ui.learn;
     if (!L) return 0;
+    ensureDur(L);
     return ['en', 'ja', 'ko'].reduce((a, lg) => a + langSeconds(lg), 0);
   }
   function fmtDuration(sec) {
