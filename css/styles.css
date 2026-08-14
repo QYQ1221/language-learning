@@ -339,8 +339,6 @@ button, input, textarea, select {
   color: var(--text-2);
   transition: all 0.14s;
   white-space: nowrap;
-  min-width: 72px;        /* 等宽：让「全部」标签与「全部类型」下拉宽度接近 */
-  text-align: center;
 }
 
 .lang-tab:hover { color: var(--text); }
@@ -1042,12 +1040,10 @@ button, input, textarea, select {
   align-items: center;
   flex-wrap: wrap;
 }
-.filter-controls .select { width: auto; min-width: 100px; }
+.filter-controls .select { width: auto; min-width: 132px; }  /* 全部类型/全部掌握度/全部标签 三个下拉等宽 */
 
-/* 历史页：移动端语言标签 + 展开/折叠 同一行（桌面默认隐藏，由顶栏语言标签承担） */
-.hist-lang-row { display: none; }
+/* 历史页展开/折叠按钮组（桌面与移动端共用同一个 #btnExpandAll / #btnCollapseAll） */
 .hist-expand-desktop { display: inline-flex; gap: 8px; }
-.hist-expand-m { display: none; }
 
 .search-box { position: relative; width: 100%; }
 
@@ -1258,31 +1254,12 @@ button, input, textarea, select {
     flex-wrap: wrap;
     gap: 8px;
   }
-  .filter-controls .select { flex: 1 1 auto; min-width: auto; width: auto; font-size: 13px; padding: 8px 24px 8px 10px; }
+  .filter-controls .select { flex: 1 1 46%; min-width: 0; width: auto; font-size: 13px; padding: 8px 24px 8px 10px; }
   .filter-controls .btn { flex: 0 0 auto; }
 
-  /* 移动端：语言标签（全部/英/日/韩）与展开/折叠 放同一行；顶栏语言标签在历史页收起 */
-  .hist-lang-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: nowrap;
-  }
-  .hist-lang-row .hist-lang-tabs {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    gap: 6px;
-  }
-  .hist-lang-row .hist-lang-tabs .lang-tab {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 6px 4px;
-    font-size: 12px;
-  }
-  .hist-lang-row .hist-expand-m { display: flex; gap: 6px; flex-shrink: 0; }
-  .hist-expand-desktop { display: none; }
-  body[data-view="history"] .topbar .lang-tabs { display: none !important; }
+  /* 移动端：全部类型/全部掌握度 一行；全部标签 与 展开/折叠 同行（各占约一半） */
+  .hist-expand-desktop { display: flex; flex: 1 1 46%; gap: 6px; min-width: 0; }
+  .hist-expand-desktop .btn { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
 
   .modal { max-width: 100%; max-height: 92vh; border-radius: var(--radius-lg); }
 

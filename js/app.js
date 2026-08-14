@@ -618,20 +618,6 @@
           </div>
         </div>
 
-        <!-- 移动端：语言标签（全部/英/日/韩）与展开/折叠放在同一行 -->
-        <div class="hist-lang-row">
-          <div class="lang-tabs hist-lang-tabs">
-            <button class="lang-tab" data-lang="all">全部</button>
-            <button class="lang-tab" data-lang="en">英语</button>
-            <button class="lang-tab" data-lang="ja">日语</button>
-            <button class="lang-tab" data-lang="ko">韩语</button>
-          </div>
-          <div class="hist-expand-m">
-            <button class="btn btn-sm" id="btnExpandAllM">展开全部</button>
-            <button class="btn btn-sm" id="btnCollapseAllM">全部折叠</button>
-          </div>
-        </div>
-
         <div class="filter-controls">
           <select class="select" id="filterType">
             <option value="all">全部类型</option>
@@ -1202,11 +1188,11 @@
       return;
     }
 
-    if (t.closest('#btnExpandAll') || t.closest('#btnExpandAllM')) {
+    if (t.closest('#btnExpandAll')) {
       Store.groupByDate(Store.state.entries).forEach(g => ui.openDays.add(g.date));
       render(); return;
     }
-    if (t.closest('#btnCollapseAll') || t.closest('#btnCollapseAllM')) { ui.openDays.clear(); render(); return; }
+    if (t.closest('#btnCollapseAll')) { ui.openDays.clear(); render(); return; }
 
     // ---- 条目操作 ----
     const actBtn = t.closest('[data-act]');
