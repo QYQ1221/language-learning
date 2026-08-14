@@ -1967,18 +1967,17 @@
             if (!opts.silent && gh) { gh.textContent = '已同步到 GitHub ✅'; gh.style.color = ''; }
             if (opts.useToast) toast('GitHub 同步已连接', 'ok');
           } catch (err) {
-            // 连接失败：清空填写内容并关闭同步（防止失效 Token 残留与失败循环）
+            // 连接失败：保留已填写的 Token/同步码（仅存本机、永不上云），方便限流恢复后或手动再次连接；
+            // 不自动清空——避免「Gist 限流 / 临时失败」就把用户填好的内容抹掉（新设备打开仍不会有内容）。
             s.gistSync = false;
-            Store.disableGist();   // 内部清空 gistToken/gistKey 并切回本地
+            Store.disableGistKeep();   // 断开连接、切回本地，但保留 Token/同步码
             if (tog) tog.checked = false;
-            if (gt) gt.value = '';
-            if (gk) gk.value = '';
             let msg = String(err.message || err);
             if (/401|Bad credentials|Unauthorized/i.test(msg)) {
               msg = 'Token 无效或已被撤销（401）：请重新生成只勾 gist 权限的 Classic Token 再粘贴';
             }
-            if (!opts.silent && gh) { gh.textContent = '连接失败：' + msg + '（已清空，请重新填写）'; gh.style.color = 'var(--danger)'; }
-            if (opts.useToast) toast('GitHub 同步连接失败：' + msg + '（已清空填写内容）', 'warn');
+            if (!opts.silent && gh) { gh.textContent = '连接失败：' + msg + '（已保留填写内容，可稍后重试）'; gh.style.color = 'var(--danger)'; }
+            if (opts.useToast) toast('GitHub 同步连接失败：' + msg + '（已保留填写内容）', 'warn');
           }
         };
         $('#setCount').addEventListener('input', e => {

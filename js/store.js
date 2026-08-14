@@ -152,10 +152,14 @@
       } catch (e) { console.warn('[GistAdapter] 读取失败', e); return null; }
     },
 
-    // 上传到 Gist 前剥离 Token 等敏感字段，避免把凭证明文写进 Gist 文件
+    // 上传到 Gist 前剥离全部凭证（Token、同步码、AI Key），避免把凭证明文写进 Gist 文件。
+    // 凭证只存本机、永不上云：因此新设备打开不会有任何填写内容（需手动填写同一个 Token+同步码才能同步）。
     _safePayload(state) {
       const safe = JSON.parse(JSON.stringify(state));
-      if (safe && safe.settings) { safe.settings.gistToken = ''; }
+      if (safe && safe.settings) {
+        safe.settings.gistToken = '';
+        safe.settings.gistKey = '';
+      }
       if (safe && safe.settings && safe.settings.ai) { safe.settings.ai.apiKey = ''; }
       return safe;
     },
