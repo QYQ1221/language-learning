@@ -974,8 +974,6 @@
     };
     $('#btnTheme').onclick = toggleTheme;
     $('#btnThemeMobile').onclick = toggleTheme;
-    const topSyncBtn = $('#btnSyncCloudTop');
-    if (topSyncBtn) topSyncBtn.onclick = syncNowCloud;
 
     // 手动同步到云端（点一下立即双向同步：推本地 + 拉远端，弥补 20s 轮询不及时）
     const syncNowCloud = async () => {
@@ -1011,6 +1009,8 @@
     };
     const syncBtn = $('#btnSyncCloud');
     if (syncBtn) syncBtn.onclick = syncNowCloud;
+    const topSyncBtn = $('#btnSyncCloudTop');
+    if (topSyncBtn) topSyncBtn.onclick = syncNowCloud;
 
     // 导入导出
     $('#btnExport').onclick = doExport;
