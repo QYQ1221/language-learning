@@ -23,7 +23,8 @@
     review: { queue: [], index: 0, revealed: false, done: 0 },
     selectedMood: null,     // 今日心情（单选）
     selectedInterests: [],  // 今日兴趣（可多选）
-    learn: null            // 今日学习会话：{ themes:[], salt, added:Set, judged:{}, pack, total }
+    learn: null,           // 今日学习会话：{ themes:[], salt, added:Set, judged:{}, pack, total }
+    learnDismissed: false  // 用户主动「换主题」后置 true：优先展示选择器，不被云端旧会话覆盖，直到重新生成
   };
 
   const DRAFT_KEY = 'lang-workbench-draft';
@@ -187,6 +188,8 @@
     if (ui.learn && (!s || s.date !== today)) {
       ui.learn = null;
     }
+    // 用户主动「换主题」后，优先展示选择器，不被云端旧会话覆盖（除非用户已重新生成）
+    if (ui.learnDismissed && !ui.learn) return renderThemePicker();
     // 跨端心情同步：云端/持久化的今日会话与本地内存会话「身份」不同（其他设备改了心情），
     // 则采用云端会话，避免手机端一直显示自己之前选的心情。身份相同则保留本机进度（不打断学习）。
     if (s && s.date === today) {
@@ -614,6 +617,21 @@
                    value="${esc(ui.filter.q)}" autocomplete="off">
           </div>
         </div>
+
+        <!-- 移动端：语言标签（全部/英/日/韩）与展开/折叠放在同一行 -->
+        <div class="hist-lang-row">
+          <div class="lang-tabs hist-lang-tabs">
+            <button class="lang-tab" data-lang="all">全部</button>
+            <button class="lang-tab" data-lang="en">英语</button>
+            <button class="lang-tab" data-lang="ja">日语</button>
+            <button class="lang-tab" data-lang="ko">韩语</button>
+          </div>
+          <div class="hist-expand-m">
+            <button class="btn btn-sm" id="btnExpandAllM">展开全部</button>
+            <button class="btn btn-sm" id="btnCollapseAllM">全部折叠</button>
+          </div>
+        </div>
+
         <div class="filter-controls">
           <select class="select" id="filterType">
             <option value="all">全部类型</option>
@@ -632,8 +650,10 @@
             <option value="">全部标签</option>
             ${tags.map(t => `<option value="${esc(t)}" ${ui.filter.tag === t ? 'selected' : ''}>#${esc(t)}</option>`).join('')}
           </select>` : ''}
-          <button class="btn btn-sm" id="btnExpandAll">展开全部</button>
-          <button class="btn btn-sm" id="btnCollapseAll">全部折叠</button>
+          <span class="hist-expand-desktop">
+            <button class="btn btn-sm" id="btnExpandAll">展开全部</button>
+            <button class="btn btn-sm" id="btnCollapseAll">全部折叠</button>
+          </span>
         </div>
       </div>
 
@@ -918,18 +938,19 @@
 
   // 顶栏语言筛选：高亮跟随当前视图语言焦点，在学习/复习/历史页显示
   function syncLangTabs() {
-    const el = $('#langTabs');
-    if (!el) return;
     const inLearn = !!ui.learn;
     const show = inLearn || ui.view === 'review' || ui.view === 'history';
-    el.style.display = show ? '' : 'none';
     const active = ui.view === 'review' ? ui.lang : (inLearn ? (ui.learn.focus || 'en') : ui.lang);
-    el.querySelectorAll('.lang-tab').forEach(b => b.classList.toggle('active', b.dataset.lang === active));
+    // 同步所有语言标签（含顶部与历史页内的副本），高亮当前语言
+    $$('.lang-tab').forEach(b => b.classList.toggle('active', b.dataset.lang === active));
+    const top = $('#langTabs');
+    if (top) top.style.display = show ? '' : 'none';  // 顶栏语言筛选在「今日录入（未学习）」时隐藏；移动端历史页由 CSS 收起，改用页面内副本
   }
 
   function render() {
     try {
     applyTheme(Store.state.settings.theme || 'light');   // 任何重渲染都让主题与 state 一致：本地切换、云端推送换主题、刷新后均自动同步
+    document.body.setAttribute('data-view', ui.view);    // 供 CSS 按视图微调布局（如移动端历史页收起顶栏语言标签）
     const [title, sub] = TITLES[ui.view];
     $('#pageTitle').textContent = title;
     $('#pageSub').textContent = sub;
@@ -996,8 +1017,8 @@
     $$('.nav-item[data-view]').forEach(b => b.onclick = () => switchView(b.dataset.view));
     $$('.mnav-item').forEach(b => b.onclick = () => switchView(b.dataset.view));
 
-    // 顶栏语言筛选（学习页切单词 / 复习页切复习）
-    $$('#langTabs .lang-tab').forEach(b => b.onclick = () => selectLang(b.dataset.lang));
+    // 顶栏语言筛选（学习页切单词 / 复习页切复习）；历史页内的副本也复用同一绑定
+    $$('.lang-tab[data-lang]').forEach(b => b.onclick = () => selectLang(b.dataset.lang));
 
     // 主题
     const toggleTheme = () => {
@@ -1134,7 +1155,7 @@
     }
     if (t.closest('#btnSurprise')) { startLearn([LangThemes.suggestTheme(todayKey())]); return; }
     if (t.closest('#btnManualAdd')) { openManualAdd(); return; }
-    if (t.closest('#btnBackTheme')) { pauseTimer(); ui.learn = null; persistLearn(); render(); return; }  // 主动换主题：清空持久化的今日会话
+    if (t.closest('#btnBackTheme')) { pauseTimer(); ui.learn = null; ui.learnDismissed = true; persistLearn(); render(); return; }  // 主动换主题：清空持久化会话并优先展示选择器
     if (t.closest('#btnReshuffle')) { pauseTimer(); ui.learn.salt = (ui.learn.salt || 0) + 1; regenerateLearn(); persistLearn(); render(); return; }
     if (t.closest('#btnFinishLater')) { pauseTimer(); ui.learn = null; render(); toast('已保存进度，随时继续', 'ok'); return; }  // 保留 learnSession，下次进入 capture 自动恢复
 
@@ -1181,11 +1202,11 @@
       return;
     }
 
-    if (t.closest('#btnExpandAll')) {
+    if (t.closest('#btnExpandAll') || t.closest('#btnExpandAllM')) {
       Store.groupByDate(Store.state.entries).forEach(g => ui.openDays.add(g.date));
       render(); return;
     }
-    if (t.closest('#btnCollapseAll')) { ui.openDays.clear(); render(); return; }
+    if (t.closest('#btnCollapseAll') || t.closest('#btnCollapseAllM')) { ui.openDays.clear(); render(); return; }
 
     // ---- 条目操作 ----
     const actBtn = t.closest('[data-act]');
@@ -1275,6 +1296,7 @@
 
   function startLearn(themeKeys) {
     const order = ['en', 'ja', 'ko'];
+    ui.learnDismissed = false;   // 重新生成后清除「换主题」标记
     ui.learn = {
       themes: themeKeys.slice(), salt: 0, added: new Set(), judged: {},
       pack: null, total: 0,
@@ -1284,8 +1306,8 @@
       langDone: { en: false, ja: false, ko: false },
       langCheckedIn: { en: false, ja: false, ko: false }  // 学完并确认打卡后标记
     };
+    persistLearn();        // 先落盘：保证随后 regenerateLearn 内的 render 时，Store.state.learnSession 已是新会话（身份一致），不会被旧云端/本地会话覆盖
     regenerateLearn();
-    persistLearn();
   }
 
   // 把内存中的今日学习会话序列化进 Store.state.learnSession（持久化 + 参与 GitHub 同步）。
@@ -1300,6 +1322,7 @@
     ensureDur(L);
     Store.state.learnSession = {
       date: todayKey(),
+      updatedAt: Date.now(),    // 会话时间戳：用于跨端冲突解决（本地更新则不被旧云端数据覆盖）
       themes: L.themes.slice(),
       salt: L.salt || 0,
       focus: L.focus || 'en',

@@ -356,6 +356,9 @@
       const keepToken = this.state.settings.gistToken;   // 远端 Gist 不含 token，保留本地凭证避免刷新后重连失败
       const keepKey = this.state.settings.gistKey;
       const keepAiKey = (this.state.settings.ai && this.state.settings.ai.apiKey) || ''; // AI Key 仅存本机，不被远端（已剥离）覆盖，避免同步把本地 Key 清空
+      // 今日会话冲突解决：本地会话比云端更新（或更近操作）时，保留本地，避免刚换的心情 / 刚生成的词包被旧云端数据打回
+      const localLS = this.state.learnSession;
+      const localLSUpdated = (localLS && typeof localLS === 'object') ? (localLS.updatedAt || 0) : -1;
       this.state = Object.assign(defaultState(), remoteState);
       this.state.settings = Object.assign(defaultState().settings, remoteState.settings || {});
       this.state.settings.gistToken = keepToken;
@@ -363,6 +366,13 @@
       // 远端 Gist 中的 ai.apiKey 始终为空（上传前已剥离），此处用本地 Key 覆盖，确保 Key 永不被同步清空
       this.state.settings.ai = Object.assign({}, this.state.settings.ai || {}, { apiKey: keepAiKey });
       this._fixLearnSession();
+      // 云端会话若比本地旧（或云端无会话），保留本地今日会话，避免覆盖刚生成/正在学习的会话
+      const remoteLS = remoteState.learnSession;
+      const remoteLSUpdated = (remoteLS && typeof remoteLS === 'object') ? (remoteLS.updatedAt || 0) : -1;
+      if (localLS && typeof localLS === 'object' && localLSUpdated >= remoteLSUpdated) {
+        this.state.learnSession = localLS;
+        this._fixLearnSession();
+      }
       this._migrate();
       this._mirrorLocal();       // 镜像到本地，云端离线也能恢复
       return true;
@@ -382,6 +392,7 @@
       if (!Array.isArray(ls.order)) ls.order = ['en', 'ja', 'ko'];
       if (typeof ls.idx !== 'number') ls.idx = 0;
       if (!ls.focus) ls.focus = 'en';
+      if (typeof ls.updatedAt !== 'number') ls.updatedAt = 0;   // 会话时间戳（用于跨端冲突解决）
       if (!ls.langDone || typeof ls.langDone !== 'object') ls.langDone = { en: false, ja: false, ko: false };
       if (!ls.langCheckedIn || typeof ls.langCheckedIn !== 'object') ls.langCheckedIn = { en: false, ja: false, ko: false };
     },
