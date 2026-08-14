@@ -1037,16 +1037,45 @@
       const btns = $$('#btnSyncCloud, #btnSyncCloudTop');
       btns.forEach(b => { if (b) b.disabled = true; });
       Store._setStatus('saving');
+
+      // 手动同步增加重试：GitHub 在国内网络不稳定，一次超时未必是真的失败
+      const fetchRemote = async (attempts = 3, delay = 1200) => {
+        for (let i = 0; i < attempts; i++) {
+          await Gist.init({ token: s.gistToken, key: s.gistKey });
+          const remote = await Gist.load();
+          if (remote && typeof remote === 'object') return remote;
+          const type = Gist._lastErrorType;
+          if (type === 'auth' || type === 'notfound') throw new Error(Gist.error || '拉取云端失败');
+          if (i < attempts - 1) await new Promise(r => setTimeout(r, delay));
+        }
+        throw new Error(Gist.error || '拉取云端失败，请检查网络');
+      };
+      const pushRemote = async (attempts = 3, delay = 1200) => {
+        for (let i = 0; i < attempts; i++) {
+          await Gist.init({ token: s.gistToken, key: s.gistKey });
+          if (await Gist.save(Store.state)) return true;
+          const type = Gist._lastErrorType;
+          if (type === 'auth' || type === 'notfound') throw new Error(Gist.error || '上传失败');
+          if (type === 'ratelimit') {
+            toast('GitHub 限流中，预计 ' + new Date(Gist._rateLimitedUntil).toLocaleTimeString() + ' 恢复', 'warn');
+            return false;
+          }
+          if (i < attempts - 1) await new Promise(r => setTimeout(r, delay));
+        }
+        throw new Error(Gist.error || '上传失败，请检查网络');
+      };
+
       try {
         await Store.flush();                                                       // 先落本地镜像
-        await Gist.init({ token: s.gistToken, key: s.gistKey });
-        const remote = await Gist.load();                                          // 先拉：取回云端最新并应用（含其它端改动）
-        if (remote && typeof remote === 'object') {
-          if (Store._applyRemote(remote)) { Store._emit(); if (Store.onRemote) Store.onRemote(); }
+        const remote = await fetchRemote();                                        // 先拉：取回云端最新并应用（含其它端改动）
+        if (Store._applyRemote(remote)) { Store._emit(); if (Store.onRemote) Store.onRemote(); }
+        const pushed = await pushRemote();                                         // 后推：把合并后的最新写回云端
+        if (pushed) {
+          toast('已同步（已合并云端更新）', 'ok');
+          Store._setStatus('saved');
+        } else {
+          Store._setStatus('ratelimit');
         }
-        if (!await Gist.save(Store.state)) throw new Error(Gist.error || '上传失败');   // 后推：把合并后的最新（含云端更新）写回云端，确保两端对齐
-        toast('已同步（已合并云端更新）', 'ok');
-        Store._setStatus('saved');
       } catch (e) {
         Store._setStatus('offline');
         toast('同步失败：' + (e && e.message ? e.message : e), 'err');
@@ -1951,6 +1980,7 @@
         const connectGist = async (opts) => {
           opts = opts || {};
           const gt = $('#setGistToken'), gk = $('#setGistKey'), gh = $('#gistHint'), tog = $('#setGist');
+          const Gist = window.LangStore.GistAdapter;
           const token = (gt ? gt.value : '').trim();
           const key = (gk ? gk.value : '').trim();
           s.gistToken = token; s.gistKey = key;
@@ -1964,20 +1994,35 @@
             const ok = await Store.enableGist(token, key);
             if (!ok) throw new Error(Store._gistError || '未知');
             if (gk && s.gistKey) gk.value = s.gistKey;
-            if (!opts.silent && gh) { gh.textContent = '已同步到 GitHub ✅'; gh.style.color = ''; }
-            if (opts.useToast) toast('GitHub 同步已连接', 'ok');
-          } catch (err) {
-            // 连接失败：保留已填写的 Token/同步码（仅存本机、永不上云），方便限流恢复后或手动再次连接；
-            // 不自动清空——避免「Gist 限流 / 临时失败」就把用户填好的内容抹掉（新设备打开仍不会有内容）。
-            s.gistSync = false;
-            Store.disableGistKeep();   // 断开连接、切回本地，但保留 Token/同步码
-            if (tog) tog.checked = false;
-            let msg = String(err.message || err);
-            if (/401|Bad credentials|Unauthorized/i.test(msg)) {
-              msg = 'Token 无效或已被撤销（401）：请重新生成只勾 gist 权限的 Classic Token 再粘贴';
+            // 临时失败时 enableGist 会保持连接并自动重试，这里给出对应的友好提示
+            const lastType = Gist && Gist._lastErrorType;
+            if (lastType === 'ratelimit') {
+              if (!opts.silent && gh) { gh.textContent = '已连接，GitHub 限流中，' + (Gist._rateLimitedUntil ? '预计 ' + new Date(Gist._rateLimitedUntil).toLocaleTimeString() + ' 恢复' : '稍后自动同步') + ' ⏳'; gh.style.color = ''; }
+              if (opts.useToast) toast('GitHub 同步已连接（限流中，稍后自动完成）', 'ok');
+            } else if (lastType === 'timeout' || lastType === 'network') {
+              if (!opts.silent && gh) { gh.textContent = '已连接，当前网络较慢，稍后自动同步 ⏳'; gh.style.color = ''; }
+              if (opts.useToast) toast('GitHub 同步已连接（稍后自动完成）', 'ok');
+            } else {
+              if (!opts.silent && gh) { gh.textContent = '已同步到 GitHub ✅'; gh.style.color = ''; }
+              if (opts.useToast) toast('GitHub 同步已连接', 'ok');
             }
-            if (!opts.silent && gh) { gh.textContent = '连接失败：' + msg + '（已保留填写内容，可稍后重试）'; gh.style.color = 'var(--danger)'; }
-            if (opts.useToast) toast('GitHub 同步连接失败：' + msg + '（已保留填写内容）', 'warn');
+          } catch (err) {
+            // 只有 401/404 等不可逆错误才断开并关闭开关；超时/网络/限流已在 enableGist 中保持连接自动重试。
+            const msg = String(err.message || err);
+            const isFatal = /401|Bad credentials|Unauthorized|404|不存在|无效|撤销/i.test(msg);
+            if (isFatal) {
+              s.gistSync = false;
+              Store.disableGistKeep();   // 断开连接、切回本地，但保留 Token/同步码
+              if (tog) tog.checked = false;
+            }
+            let display = msg;
+            if (/401|Bad credentials|Unauthorized/i.test(msg)) {
+              display = 'Token 无效或已被撤销（401）：请重新生成只勾 gist 权限的 Classic Token 再粘贴';
+            } else if (/404|不存在/i.test(msg)) {
+              display = '同步码对应的 Gist 不存在（404）：请检查同步码或新建一个';
+            }
+            if (!opts.silent && gh) { gh.textContent = '连接失败：' + display + '（已保留填写内容，可稍后重试）'; gh.style.color = 'var(--danger)'; }
+            if (opts.useToast) toast('GitHub 同步连接失败：' + display + '（已保留填写内容）', 'warn');
           }
         };
         $('#setCount').addEventListener('input', e => {

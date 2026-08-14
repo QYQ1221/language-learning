@@ -86,6 +86,34 @@
     return null;
   }
 
+  // fetch 带超时，避免 GitHub API 无响应时长时间挂起
+  async function fetchWithTimeout(url, options, timeoutMs) {
+    timeoutMs = timeoutMs || 12000;
+    const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    let id;
+    if (controller) {
+      id = setTimeout(() => controller.abort(), timeoutMs);
+    }
+    try {
+      const res = await fetch(url, controller ? Object.assign({}, options, { signal: controller.signal }) : options);
+      return res;
+    } finally {
+      if (id) clearTimeout(id);
+    }
+  }
+
+  // 把 fetch 异常 / HTTP 状态归类为可读类型，避免把「超时/网络」误报成「Token 无效」
+  function classifyFetchError(e, status) {
+    if (status === 401) return { type: 'auth', message: 'Token 无效或没有 gist 权限（401）' };
+    if (status === 403) return { type: 'ratelimit', message: 'GitHub API 限流中（403）' };
+    if (status === 404) return { type: 'notfound', message: '同步码对应的 Gist 不存在（404）' };
+    if (status != null && status >= 500) return { type: 'server', message: 'GitHub 服务器错误（' + status + '）' };
+    if (status != null) return { type: 'http', message: 'GitHub 请求失败（HTTP ' + status + '）' };
+    const msg = e && e.message ? e.message : String(e);
+    if (/abort|timeout|timed out/i.test(msg) || (e && e.name === 'AbortError')) return { type: 'timeout', message: '连接 GitHub 超时，请检查网络或稍后重试' };
+    return { type: 'network', message: '网络异常，无法连接到 GitHub' };
+  }
+
   // ---------- 持久化适配器 ----------
 
   /**
@@ -122,6 +150,7 @@
     _token: '',
     _gistId: '',
     _rateLimitedUntil: 0,   // GitHub API 限流恢复时间戳（ms）；限流期间直接跳过请求，避免进一步消耗配额
+    _lastErrorType: '',     // 最近一次失败类型：timeout/network/ratelimit/auth/notfound/http/server
 
     async init(cfg) {
       const token = (cfg && cfg.token) || '';
@@ -137,19 +166,34 @@
 
     async load() {
       if (!this.ready) return null;
+      this._lastErrorType = '';
       // 限流中：跳过读取请求（与保存一致），避免进一步消耗配额；本地镜像仍可用
-      if (this._rateLimitedUntil && Date.now() < this._rateLimitedUntil) return null;
+      if (this._rateLimitedUntil && Date.now() < this._rateLimitedUntil) { this._lastErrorType = 'ratelimit'; return null; }
       try {
-        const res = await fetch('https://api.github.com/gists/' + this._gistId, {
+        const res = await fetchWithTimeout('https://api.github.com/gists/' + this._gistId, {
           headers: { 'Authorization': 'Bearer ' + this._token, 'Accept': 'application/vnd.github+json' }
         });
-        if (res.status === 404) return null;
-        if (!res.ok) { console.warn('[GistAdapter] 读取失败', res.status); return null; }
+        if (res.status === 404) { this._lastErrorType = 'notfound'; return null; }
+        if (!res.ok) {
+          const t = await res.text().catch(() => '');
+          const err = classifyFetchError(new Error(t), res.status);
+          this._lastErrorType = err.type;
+          this.error = err.message;
+          console.warn('[GistAdapter] 读取失败', res.status, t);
+          return null;
+        }
         const data = await res.json();
         const file = data && data.files && data.files['langworkbench_state.json'];
         if (!file || file.content == null) return null;
+        this.error = null;
         return JSON.parse(file.content);
-      } catch (e) { console.warn('[GistAdapter] 读取失败', e); return null; }
+      } catch (e) {
+        const err = classifyFetchError(e, null);
+        this._lastErrorType = err.type;
+        this.error = err.message;
+        console.warn('[GistAdapter] 读取失败', e);
+        return null;
+      }
     },
 
     // 上传到 Gist 前剥离全部凭证（Token、同步码、AI Key），避免把凭证明文写进 Gist 文件。
@@ -166,11 +210,12 @@
 
     async save(state) {
       if (!this.ready) return false;
+      this._lastErrorType = '';
       // GitHub API 限流中：跳过请求，避免进一步消耗配额（_rateLimitedUntil 由上次 403 设置）
-      if (this._rateLimitedUntil && Date.now() < this._rateLimitedUntil) return false;
+      if (this._rateLimitedUntil && Date.now() < this._rateLimitedUntil) { this._lastErrorType = 'ratelimit'; return false; }
       const content = JSON.stringify(this._safePayload(state));
       try {
-        const res = await fetch('https://api.github.com/gists/' + this._gistId, {
+        const res = await fetchWithTimeout('https://api.github.com/gists/' + this._gistId, {
           method: 'PATCH',
           headers: { 'Authorization': 'Bearer ' + this._token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
           body: JSON.stringify({ files: { 'langworkbench_state.json': { content } } })
@@ -180,30 +225,61 @@
           if (/rate limit/i.test(t)) {
             const reset = Number(res.headers.get('X-RateLimit-Reset')) || 0;
             this._rateLimitedUntil = reset ? reset * 1000 : Date.now() + 60 * 60 * 1000;
+            this._lastErrorType = 'ratelimit';
             this.error = 'GitHub API 限流中（约 ' + Math.ceil((this._rateLimitedUntil - Date.now()) / 60000) + ' 分钟后恢复）';
             console.warn('[GistAdapter] 触发限流，预计恢复', new Date(this._rateLimitedUntil).toLocaleTimeString());
             return false;
           }
-          throw new Error('HTTP 403 ' + t.slice(0, 120));
+          const err = classifyFetchError(new Error(t), 403);
+          this._lastErrorType = err.type;
+          this.error = err.message;
+          return false;
         }
-        if (!res.ok) { const t2 = await res.text().catch(() => ''); throw new Error('HTTP ' + res.status + ' ' + t2.slice(0, 120)); }
+        if (!res.ok) {
+          const t2 = await res.text().catch(() => '');
+          const err = classifyFetchError(new Error(t2), res.status);
+          this._lastErrorType = err.type;
+          this.error = err.message;
+          return false;
+        }
         this._rateLimitedUntil = 0;   // 成功即清除限流标记
+        this.error = null;
+        this._lastErrorType = '';
         return true;
-      } catch (e) { this.error = e && e.message ? e.message : String(e); console.warn('[GistAdapter] 保存失败', e); return false; }
+      } catch (e) {
+        const err = classifyFetchError(e, null);
+        this._lastErrorType = err.type;
+        this.error = err.message;
+        console.warn('[GistAdapter] 保存失败', e);
+        return false;
+      }
     },
 
     // 创建新 Gist（首次开启且未提供同步码时调用），返回 gist id
     async create(token, state) {
+      this._lastErrorType = '';
       try {
-        const res = await fetch('https://api.github.com/gists', {
+        const res = await fetchWithTimeout('https://api.github.com/gists', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
           body: JSON.stringify({ description: 'lang-workbench sync', public: false, files: { 'langworkbench_state.json': { content: JSON.stringify(this._safePayload(state)) } } })
         });
-        if (!res.ok) { this.error = '创建 Gist 失败（HTTP ' + res.status + '）'; return null; }
+        if (!res.ok) {
+          const t = await res.text().catch(() => '');
+          const err = classifyFetchError(new Error(t), res.status);
+          this._lastErrorType = err.type;
+          this.error = err.message;
+          return null;
+        }
+        this.error = null;
         const data = await res.json();
         return data.id || null;
-      } catch (e) { this.error = e && e.message ? e.message : String(e); return null; }
+      } catch (e) {
+        const err = classifyFetchError(e, null);
+        this._lastErrorType = err.type;
+        this.error = err.message;
+        return null;
+      }
     },
 
     // 轮询订阅（Gist 无 WebSocket，用 20s 轮询模拟近实时同步）
@@ -212,9 +288,9 @@
       let last = '';
       const tick = async () => {
         try {
-          const res = await fetch('https://api.github.com/gists/' + this._gistId, {
+          const res = await fetchWithTimeout('https://api.github.com/gists/' + this._gistId, {
             headers: { 'Authorization': 'Bearer ' + this._token, 'Accept': 'application/vnd.github+json' }
-          });
+          }, 8000);
           if (!res.ok) return;
           const data = await res.json();
           const file = data.files && data.files['langworkbench_state.json'];
@@ -406,12 +482,16 @@
     /**
      * 启用 GitHub Gist 同步（免费、零服务器）：初始化 GistAdapter → 拉取远端（合并）→ 轮询订阅近实时变更。
      * token 为 GitHub Personal Access Token（仅 gist 权限）。key 为 Gist ID（同步码）；为空则自动创建新 Gist。
+     *
+     * 重要：超时 / 网络抖动 / GitHub 限流 等临时失败时，不再直接断开同步，而是保持 Gist 适配器并进入自动重试，
+     * 避免「提示的恢复时间还没到就把同步开关断开」的体验问题。只有 401/404 等不可逆错误才降级到本地。
      */
     async enableGist(token, key) {
       token = (token || '').trim();
       key = (key || '').trim();
       const keepAiKey = (this.state.settings.ai && this.state.settings.ai.apiKey) || ''; // 连接同步前先暂存本地 AI Key
       if (!token) { this._gistError = '缺少 GitHub Token'; return false; }
+      this._gistError = null;
       let isNew = false;
       if (!key) {
         const created = await GistAdapter.create(token, this.state);
@@ -425,11 +505,36 @@
       const ok = await GistAdapter.init({ token, key });
       if (!ok) { this._gistError = GistAdapter.error; return false; }
       this.useAdapter(GistAdapter);
+
+      // 临时失败类型：保持连接、自动重试； auth/notfound 等才降级本地
+      const tempFail = new Set(['timeout', 'network', 'ratelimit']);
+      const keepGistAndRetry = (type) => {
+        this._gistEnabled = true;
+        this.state.settings.gistToken = token;
+        this.state.settings.gistKey = key;
+        this.state.settings.ai = Object.assign({}, this.state.settings.ai || {}, { apiKey: (this.state.settings.ai && this.state.settings.ai.apiKey) || keepAiKey });
+        this._setStatus(type === 'ratelimit' ? 'ratelimit' : 'offline');
+        if (type === 'ratelimit') this._scheduleRateLimitRetry();
+        else this._scheduleRetry();
+        this._mirrorLocal();
+      };
+
+      // 轮询订阅尽早启动：即使本次拉取/写入因超时/限流失败，恢复后也能自动同步
+      if (this._gistUnsub) { try { this._gistUnsub(); } catch (e) {} }
+      this._gistUnsub = GistAdapter.subscribe((remoteState) => {
+        if (this._applyRemote(remoteState)) {
+          this._emit();
+          if (this.onRemote) this.onRemote();
+        }
+      });
+
       if (isNew) {
         // 新建的 Gist 内容为空，必须先把本地数据上传，否则下次读取空内容会覆盖本地
         const okSave = await GistAdapter.save(this.state);
         if (!okSave) {
-          this._gistError = '写入 Gist 失败（多半是 Token 没有 gist 权限）：' + (GistAdapter.error || '');
+          const type = GistAdapter._lastErrorType;
+          if (tempFail.has(type)) { keepGistAndRetry(type); return true; }
+          this._gistError = '写入 Gist 失败（' + (GistAdapter.error || '未知') + '）';
           this.useAdapter(LocalAdapter);
           return false;
         }
@@ -437,8 +542,13 @@
       } else {
         // 连接已有 Gist：先拉取远端并合并（保留本地独有条目），再把合并后的完整数据写回云端，实现双向同步
         const remote = await GistAdapter.load();
+        const loadType = GistAdapter._lastErrorType;
         if (remote && typeof remote === 'object') {
           this.state = this._mergeForCloud(remote);
+        } else if (tempFail.has(loadType)) {
+          // 拉取云端失败但凭证有效：保持 Gist 连接，稍后自动重试，避免一次超时/限流就断开同步
+          keepGistAndRetry(loadType);
+          return true;
         }
         this.state.settings.gistToken = token;   // 防止被云端剥离后的空 token 覆盖，刷新后才能正常重连
         this.state.settings.gistKey = key;
@@ -447,21 +557,17 @@
         this._migrate();
         const okSave = await GistAdapter.save(this.state);
         if (!okSave) {
-          this._gistError = '写入 Gist 失败（同步码对应的 Gist 不存在，或 Token 无 gist 权限）：' + (GistAdapter.error || '');
+          const type = GistAdapter._lastErrorType;
+          if (tempFail.has(type)) { keepGistAndRetry(type); return true; }
+          this._gistError = '写入 Gist 失败（' + (GistAdapter.error || '未知') + '）';
           this.useAdapter(LocalAdapter);
           return false;
         }
         this.commit();
         this._mirrorLocal();
       }
-      if (this._gistUnsub) { try { this._gistUnsub(); } catch (e) {} }
-      this._gistUnsub = GistAdapter.subscribe((remoteState) => {
-        if (this._applyRemote(remoteState)) {
-          this._emit();
-          if (this.onRemote) this.onRemote();
-        }
-      });
       this._gistEnabled = true;
+      this._gistError = null;
       return true;
     },
 
