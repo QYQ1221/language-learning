@@ -269,7 +269,7 @@
 
     const themeTitle = L.themes.map(k => {
       const tm = LangThemes.THEME_MAP[k];
-      return `${tm.emoji} ${esc(tm.name)}`;
+      return tm ? `${tm.emoji} ${esc(tm.name)}` : esc(k);
     }).join(' ＋ ');
 
     return `
@@ -924,6 +924,7 @@
   }
 
   function render() {
+    try {
     applyTheme(Store.state.settings.theme || 'light');   // 任何重渲染都让主题与 state 一致：本地切换、云端推送换主题、刷新后均自动同步
     const [title, sub] = TITLES[ui.view];
     $('#pageTitle').textContent = title;
@@ -953,6 +954,25 @@
 
     if (ui.view === 'capture' && ui.captureMode === 'bulk' && ui.draft.bulk) {
       renderBulkPreview();
+    }
+    } catch (err) {
+      // 单视图渲染异常不应拖垮整个应用 / 阻断导航：就地显示可恢复的错误，控制台保留堆栈
+      console.error('render failed', err);
+      const content = $('#content');
+      if (content) {
+        content.innerHTML = `
+          <div class="card" style="margin-top:20px">
+            <div class="empty">
+              <div class="empty-icon">⚠️</div>
+              <div class="empty-title">该页面渲染出错</div>
+              <div class="empty-text" style="text-align:left;max-width:560px;margin:0 auto">
+                错误信息：${esc(err && err.message ? err.message : String(err))}<br>
+                可先切换到其它页面继续使用；若要恢复此页面，请刷新或重新选择心情。
+              </div>
+              <button class="btn btn-primary" style="margin-top:12px" onclick="location.reload()">刷新页面</button>
+            </div>
+          </div>`;
+      }
     }
   }
 
@@ -1288,8 +1308,11 @@
   function restoreLearn() {
     const s = Store.state.learnSession;
     if (!s || s.date !== todayKey()) { ui.learn = null; return; }
+    // 过滤掉云端/旧版本中可能已失效的主题 key，避免渲染时取 THEME_MAP[k] 为 undefined 而崩溃
+    const themes = (s.themes || []).filter(k => LangThemes.THEME_MAP[k]);
+    if (!themes.length) { ui.learn = null; Store.state.learnSession = null; return; }
     ui.learn = {
-      themes: (s.themes || []).slice(),
+      themes: themes,
       salt: s.salt || 0,
       added: new Set(s.added || []),
       judged: Object.assign({}, s.judged),
@@ -2418,7 +2441,7 @@
     const text = $('#syncText');
     Store.onStatus(s => {
       dot.className = 'sync-dot' + (s === 'saving' ? ' saving' : s === 'offline' ? ' offline' : '');
-      text.textContent = s === 'saving' ? '保存中…' : s === 'offline' ? '保存失败' : '已自动保存';
+      text.textContent = s === 'saving' ? '保存中…' : s === 'offline' ? '同步重试中…' : '已自动保存';
     });
   }
 

@@ -468,9 +468,31 @@
       clearTimeout(this._saveTimer);
       this._saveTimer = setTimeout(async () => {
         const ok = await this.adapter.save(this.state);
-        this._setStatus(ok ? 'saved' : 'offline');
-        this._mirrorLocal();       // 始终保留一份本地缓存（云端不可达时可用）
+        if (ok) {
+          this._setStatus('saved');
+          this._mirrorLocal();       // 始终保留一份本地缓存（云端不可达时可用）
+        } else {
+          this._setStatus('offline');
+          this._mirrorLocal();
+          this._scheduleRetry();     // 瞬时网络失败：自动重试，无需用户操作
+        }
       }, 300);
+    },
+
+    // 上传失败后自动重试（指数退避，最多数次），应对 GitHub API / 网络的瞬时抖动。
+    // 同步开关被关闭（切回本地）后自动停止，避免无谓请求。
+    _scheduleRetry() {
+      if (this._retryTimer || this._gistEnabled === false) return;
+      let attempt = 0;
+      const tryOnce = async () => {
+        if (this._gistEnabled === false) { this._retryTimer = null; return; }
+        const ok = await this.adapter.save(this.state);
+        if (ok) { this._setStatus('saved'); this._mirrorLocal(); this._retryTimer = null; return; }
+        attempt++;
+        if (attempt >= 6) { this._retryTimer = null; return; }
+        this._retryTimer = setTimeout(tryOnce, Math.min(30000, 4000 * attempt));
+      };
+      this._retryTimer = setTimeout(tryOnce, 4000);
     },
 
     /** 立即落盘（页面隐藏/关闭前调用，防止防抖窗口内丢数据） */
