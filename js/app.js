@@ -971,6 +971,41 @@
     $('#btnTheme').onclick = toggleTheme;
     $('#btnThemeMobile').onclick = toggleTheme;
 
+    // 手动同步到云端（点一下立即双向同步：推本地 + 拉远端，弥补 20s 轮询不及时）
+    const syncNowCloud = async () => {
+      const s = Store.state.settings;
+      if (!s.gistSync || Store.adapter.name !== 'gist') {
+        toast('尚未开启 GitHub 同步，请先在设置里开启后再同步', 'warn');
+        return;
+      }
+      const Gist = window.LangStore.GistAdapter;
+      if (!Gist || !s.gistToken || !s.gistKey) {
+        toast('同步凭证缺失，请检查设置中的 Token 与同步码', 'warn');
+        return;
+      }
+      const btn = $('#btnSyncCloud');
+      if (btn) btn.disabled = true;
+      Store._setStatus('saving');
+      try {
+        await Store.flush();                                                       // 先落本地镜像
+        await Gist.init({ token: s.gistToken, key: s.gistKey });
+        if (!await Gist.save(Store.state)) throw new Error(Gist.error || '上传失败');   // 推：本机最新写云端
+        const remote = await Gist.load();                                          // 拉：取回云端最新并应用（含其它端改动）
+        if (remote && typeof remote === 'object') {
+          if (Store._applyRemote(remote)) { Store._emit(); if (Store.onRemote) Store.onRemote(); toast('已同步（合并了云端更新）', 'ok'); }
+          else toast('已同步到云端', 'ok');
+        } else toast('已同步到云端', 'ok');
+        Store._setStatus('saved');
+      } catch (e) {
+        Store._setStatus('offline');
+        toast('同步失败：' + (e && e.message ? e.message : e), 'err');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    };
+    const syncBtn = $('#btnSyncCloud');
+    if (syncBtn) syncBtn.onclick = syncNowCloud;
+
     // 导入导出
     $('#btnExport').onclick = doExport;
     $('#btnImport').onclick = () => $('#fileInput').click();
@@ -1753,7 +1788,7 @@
       <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div>
-            <div style="font-size:13px;font-weight:600">GitHub 同步（手机 ↔ 电脑，免费）</div>
+            <div style="font-size:13px;font-weight:600">GitHub 同步（手机 ↔ 电脑）</div>
             <div style="font-size:11px;color:var(--text-3);margin-top:2px" id="gistHint">${s.gistSync ? '已开启' : '未开启'}</div>
           </div>
           <label class="switch">

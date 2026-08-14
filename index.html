@@ -68,6 +68,9 @@
   <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
     <path d="M12 5v14M5 12h14"/>
   </symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>
+  </symbol>
   <symbol id="i-volume" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M18.5 5.5a9 9 0 010 13"/>
   </symbol>
@@ -106,6 +109,9 @@
     </button>
     <button class="nav-item" id="btnImport">
       <svg><use href="#i-plus"/></svg> 导入数据
+    </button>
+    <button class="nav-item" id="btnSyncCloud" title="立即把本机数据上传到云端并拉取其它端改动（双向同步）">
+      <svg><use href="#i-sync"/></svg> 同步到云端
     </button>
 
     <div class="sidebar-foot">
@@ -172,6 +178,6 @@
 <script src="js/wb-ja.js"></script>
 <script src="js/wb-ko.js"></script>
 <script src="js/ai.js?v=20260813e"></script>
-<script src="js/app.js?v=20260814g"></script>
+<script src="js/app.js?v=20260814h"></script>
 </body>
 </html>
