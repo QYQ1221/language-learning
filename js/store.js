@@ -331,10 +331,13 @@
       if (remoteState.updatedAt && this.state.updatedAt === remoteState.updatedAt) return false; // 回声去重
       const keepToken = this.state.settings.gistToken;   // 远端 Gist 不含 token，保留本地凭证避免刷新后重连失败
       const keepKey = this.state.settings.gistKey;
+      const keepAiKey = (this.state.settings.ai && this.state.settings.ai.apiKey) || ''; // AI Key 仅存本机，不被远端（已剥离）覆盖，避免同步把本地 Key 清空
       this.state = Object.assign(defaultState(), remoteState);
       this.state.settings = Object.assign(defaultState().settings, remoteState.settings || {});
       this.state.settings.gistToken = keepToken;
       this.state.settings.gistKey = keepKey;
+      // 远端 Gist 中的 ai.apiKey 始终为空（上传前已剥离），此处用本地 Key 覆盖，确保 Key 永不被同步清空
+      this.state.settings.ai = Object.assign({}, this.state.settings.ai || {}, { apiKey: keepAiKey });
       this._migrate();
       this._mirrorLocal();       // 镜像到本地，云端离线也能恢复
       return true;
@@ -348,6 +351,7 @@
     async enableGist(token, key) {
       token = (token || '').trim();
       key = (key || '').trim();
+      const keepAiKey = (this.state.settings.ai && this.state.settings.ai.apiKey) || ''; // 连接同步前先暂存本地 AI Key
       if (!token) { this._gistError = '缺少 GitHub Token'; return false; }
       let isNew = false;
       if (!key) {
@@ -379,6 +383,8 @@
         }
         this.state.settings.gistToken = token;   // 防止被云端剥离后的空 token 覆盖，刷新后才能正常重连
         this.state.settings.gistKey = key;
+        // 远端 Gist 的 ai.apiKey 为空（已剥离），用本地 Key 覆盖，避免连接同步清空本地 AI Key
+        this.state.settings.ai = Object.assign({}, this.state.settings.ai || {}, { apiKey: (this.state.settings.ai && this.state.settings.ai.apiKey) || keepAiKey });
         this._migrate();
         const okSave = await GistAdapter.save(this.state);
         if (!okSave) {
