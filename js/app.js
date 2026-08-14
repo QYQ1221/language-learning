@@ -987,7 +987,7 @@
         toast('同步凭证缺失，请检查设置中的 Token 与同步码', 'warn');
         return;
       }
-      const btns = $$('#btnSyncCloud, #setSyncCloud, #btnSyncCloudTop');
+      const btns = $$('#btnSyncCloud, #btnSyncCloudTop');
       btns.forEach(b => { if (b) b.disabled = true; });
       Store._setStatus('saving');
       try {
@@ -1805,7 +1805,6 @@
         <div id="gistCfg" style="${s.gistSync ? '' : 'display:none'}">
           <input type="text" id="setGistToken" class="input" placeholder="GitHub Token（仅勾 gist 权限，存本机）" value="${esc(s.gistToken || '')}" style="width:100%;margin-top:10px">
           <input type="text" id="setGistKey" class="input" placeholder="同步码（Gist ID；留空则自动新建，多端填同一个）" value="${esc(s.gistKey || '')}" style="width:100%;margin-top:8px">
-          <button class="btn btn-sm btn-primary" id="setSyncCloud" type="button" style="margin-top:10px"><svg class="ic"><use href="#i-sync"/></svg> 同步到云端</button>
           <div style="font-size:11px;color:var(--text-3);margin-top:6px">无需任何付费云服务：用免费 GitHub 账号生成一个 Personal Access Token（只勾 <code>gist</code> 权限）填上方即可。手机和电脑填<b>同一个 Token + 同一个同步码</b>即双向实时同步。数据存于你的私人 Gist，仅你自己可读。</div>
         </div>
       </div>
@@ -2037,8 +2036,6 @@
         if (setExport) setExport.onclick = () => { c(); doExport(); };
         const setImport = $('#setImport');
         if (setImport) setImport.onclick = () => { c(); $('#fileInput').click(); };
-        const setSyncCloud = $('#setSyncCloud');
-        if (setSyncCloud) setSyncCloud.onclick = syncNowCloud;
         const setClear = $('#setClear');
         if (setClear) setClear.onclick = () => {
           modal({
