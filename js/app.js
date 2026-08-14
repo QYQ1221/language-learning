@@ -1953,19 +1953,35 @@
                    <button class="btn btn-primary" style="background:var(--danger);border-color:var(--danger)" id="clOk">清空</button>`,
             onMount(close) {
               $('#clCancel').onclick = close;
-              $('#clOk').onclick = () => {
+              $('#clOk').onclick = async () => {
                 Store.state.entries = [];
                 Store.state.checkins = {};
-                // 清除数据时同时关闭 GitHub 同步，避免本地清空后又被云端 Gist 拉回
-                if (Store.state.settings.gistSync) {
-                  Store.state.settings.gistSync = false;
-                  Store.disableGist();
+                Store.state.updatedAt = Date.now();
+                // 已开启 GitHub 同步时：先把「空数据」覆盖到云端 Gist，使手机/电脑等所有已同步设备
+                // 下次拉取也会变成空，否则云端仍保留旧记录，清完重新打开会从云端把那 4 天拉回来。
+                if (Store.state.settings.gistSync && Store.adapter.name === 'gist') {
+                  const tok = Store.state.settings.gistToken, key = Store.state.settings.gistKey;
+                  Store.disableGistKeep();   // 先停轮询、切回本地，保留 Token
+                  const Gist = window.LangStore.GistAdapter;
+                  if (Gist && tok && key) {
+                    try {
+                      await Gist.init({ token: tok, key: key });
+                      await Gist.save(Store.state);   // 云端覆盖为空
+                      // 不重新拉取远端（避免把旧记录拉回），仅恢复轮询订阅，保持后续继续同步
+                      Store.useAdapter(Gist);
+                      Store._gistEnabled = true;
+                      if (Store._gistUnsub) { try { Store._gistUnsub(); } catch (e) {} }
+                      Store._gistUnsub = Gist.subscribe((remoteState) => {
+                        if (Store._applyRemote(remoteState)) { Store._emit(); if (Store.onRemote) Store.onRemote(); }
+                      });
+                    } catch (e) {}
+                  }
                 }
                 Store.commit();
                 close();
                 if (ui.view === 'review') buildReviewQueue();
                 render();
-                toast('学习记录已清空，GitHub 同步已自动关闭', 'ok');
+                toast('学习记录已清空' + (Store.state.settings.gistSync ? '，云端也同步清空' : ''), 'ok');
               };
             }
           });
