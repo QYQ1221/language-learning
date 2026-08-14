@@ -238,12 +238,6 @@
           + 自己加词（辅助录入）
         </button>
       </div>
-
-      <div style="margin-top:8px">
-        <button class="btn btn-sm btn-ghost" id="btnFillDemo" style="width:100%;justify-content:center;padding:9px">
-          📥 填充示例数据（演示用，不自动出现）
-        </button>
-      </div>
     `;
   }
 
@@ -1054,14 +1048,6 @@
     }
     if (t.closest('#btnSurprise')) { startLearn([LangThemes.suggestTheme(todayKey())]); return; }
     if (t.closest('#btnManualAdd')) { openManualAdd(); return; }
-    if (t.closest('#btnFillDemo')) {
-      if (Store.state.entries.length) { toast('已有数据，无需填充示例', 'warn'); return; }
-      fillDemoData();
-      Store.commit();
-      render();
-      toast('已填充示例数据（演示用）', 'ok');
-      return;
-    }
     if (t.closest('#btnBackTheme')) { pauseTimer(); ui.learn = null; render(); return; }
     if (t.closest('#btnReshuffle')) { pauseTimer(); ui.learn.salt = (ui.learn.salt || 0) + 1; regenerateLearn(); return; }
     if (t.closest('#btnFinishLater')) { pauseTimer(); ui.learn = null; render(); toast('已保存进度，随时继续', 'ok'); return; }
@@ -2328,60 +2314,6 @@
       dot.className = 'sync-dot' + (s === 'saving' ? ' saving' : s === 'offline' ? ' offline' : '');
       text.textContent = s === 'saving' ? '保存中…' : s === 'offline' ? '保存失败' : '已自动保存';
     });
-  }
-
-  // ============================================================
-  // 示例数据（手动触发，不再自动注入；保证新设备/清空后从 0 开始）
-  // ============================================================
-
-  function fillDemoData() {
-    if (Store.state.entries.length) return;
-    const today = todayKey();
-    const samples = [
-      { lang: 'en', type: 'word', text: 'resilient', reading: '/rɪˈzɪliənt/', pos: '形容词 adj.',
-        meaning: '有韧性的；能迅速恢复的', example: 'Children are often remarkably resilient.',
-        exampleTrans: '孩子的心理恢复力往往强得惊人。', source: '经济学人', tags: ['高频', '写作'], level: 1, day: 0 },
-      { lang: 'ja', type: 'word', text: '頑張る', reading: 'がんばる', pitch: '3', pos: '動詞（五段）',
-        meaning: '努力；加油；坚持', example: '最後まで頑張ります。', exampleTrans: '我会坚持到最后。',
-        source: 'みんなの日本語', tags: ['N5', '日常'], level: 2, day: 0 },
-      { lang: 'ko', type: 'word', text: '열심히', reading: 'yeolsimhi', hanja: '熱心-', pos: '부사 副词',
-        meaning: '努力地，用心地', example: '열심히 공부하고 있어요.', exampleTrans: '我正在努力学习。',
-        source: '延世韩国语', tags: ['TOPIK1'], level: 1, day: 0 },
-      { lang: 'en', type: 'phrase', text: 'take something for granted', reading: '', pos: '短语 phr.',
-        meaning: '把…视为理所当然', example: 'We take clean water for granted.',
-        exampleTrans: '我们把干净的水当成理所当然。', source: '雅思口语', tags: ['口语'], level: 0, day: 1 },
-      { lang: 'ja', type: 'grammar', text: '〜ておく', reading: '', pos: '表現',
-        meaning: '预先做好某事；保持某状态', example: '会議の前に資料を読んでおきます。',
-        exampleTrans: '会议前先把资料看好。', source: 'N4语法', tags: ['N4', '语法'], level: 1, day: 1 },
-      { lang: 'ko', type: 'sentence', text: '시간이 어떻게 되세요?', reading: 'sigani eotteoke doeseyo',
-        pos: '표현 表达', meaning: '现在几点了？（敬语）', example: '', exampleTrans: '',
-        source: '实用会话', tags: ['敬语', '日常'], level: 0, day: 2 },
-      { lang: 'en', type: 'word', text: 'ambiguous', reading: '/æmˈbɪɡjuəs/', pos: '形容词 adj.',
-        meaning: '模棱两可的；含糊不清的', example: 'His answer was deliberately ambiguous.',
-        exampleTrans: '他的回答故意含糊其辞。', source: 'GRE 词汇', tags: ['学术'], level: 2, day: 2 }
-    ];
-
-    samples.forEach(s => {
-      const created = Date.now() - s.day * 86400000;
-      Store.state.entries.push({
-        id: window.LangStore.uid(),
-        lang: s.lang, type: s.type, text: s.text, reading: s.reading || '',
-        pitch: s.pitch || '', hanja: s.hanja || '', pos: s.pos || '',
-        meaning: s.meaning, example: s.example || '', exampleTrans: s.exampleTrans || '',
-        source: s.source || '', note: '', tags: s.tags || [], level: s.level,
-        createdAt: created, updatedAt: created,
-        dateKey: addDays(today, -s.day),
-        srs: { stage: s.level, nextReview: addDays(today, s.day === 0 ? 1 : -1), reviews: s.day, lapses: 0 }
-      });
-    });
-
-    Store.state.checkins[today] = { listening: true, speaking: false, reading: true, writing: true, minutes: 35 };
-    Store.state.checkins[addDays(today, -1)] = { listening: true, speaking: false, reading: true, writing: true, minutes: 45 };
-    Store.state.checkins[addDays(today, -2)] = { listening: true, speaking: true, reading: true, writing: false, minutes: 30 };
-    Store.state.checkins[addDays(today, -3)] = { listening: true, speaking: true, reading: false, writing: false, minutes: 25 };
-
-    Store.state.entries.sort((a, b) => b.createdAt - a.createdAt);
-    Store.commit();
   }
 
   // ============================================================
