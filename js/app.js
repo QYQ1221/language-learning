@@ -909,6 +909,7 @@
   }
 
   function render() {
+    applyTheme(Store.state.settings.theme || 'light');   // 任何重渲染都让主题与 state 一致：本地切换、云端推送换主题、刷新后均自动同步
     const [title, sub] = TITLES[ui.view];
     $('#pageTitle').textContent = title;
     $('#pageSub').textContent = sub;
