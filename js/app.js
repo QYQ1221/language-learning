@@ -1022,6 +1022,11 @@
         toast('同步凭证缺失，请检查设置中的 Token 与同步码', 'warn');
         return;
       }
+      // 限流中：直接提示，不重复发请求（避免进一步消耗配额）；限流恢复后会自动补传
+      if (Gist._rateLimitedUntil && Date.now() < Gist._rateLimitedUntil) {
+        toast('GitHub 限流中，预计 ' + new Date(Gist._rateLimitedUntil).toLocaleTimeString() + ' 恢复，稍后会自动同步', 'warn');
+        return;
+      }
       const btns = $$('#btnSyncCloud, #btnSyncCloudTop');
       btns.forEach(b => { if (b) b.disabled = true; });
       Store._setStatus('saving');
@@ -2456,8 +2461,11 @@
     const dot = $('#syncDot');
     const text = $('#syncText');
     Store.onStatus(s => {
-      dot.className = 'sync-dot' + (s === 'saving' ? ' saving' : s === 'offline' ? ' offline' : '');
-      text.textContent = s === 'saving' ? '保存中…' : s === 'offline' ? '同步重试中…' : '已自动保存';
+      dot.className = 'sync-dot' + (s === 'saving' ? ' saving' : s === 'offline' ? ' offline' : s === 'ratelimit' ? ' offline' : '');
+      text.textContent = s === 'saving' ? '保存中…'
+        : s === 'offline' ? '同步重试中…'
+        : s === 'ratelimit' ? 'GitHub 限流中，稍后自动同步'
+        : '已自动保存';
     });
   }
 

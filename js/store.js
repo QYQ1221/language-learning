@@ -121,6 +121,7 @@
     error: null,
     _token: '',
     _gistId: '',
+    _rateLimitedUntil: 0,   // GitHub API 限流恢复时间戳（ms）；限流期间直接跳过请求，避免进一步消耗配额
 
     async init(cfg) {
       const token = (cfg && cfg.token) || '';
@@ -136,6 +137,8 @@
 
     async load() {
       if (!this.ready) return null;
+      // 限流中：跳过读取请求（与保存一致），避免进一步消耗配额；本地镜像仍可用
+      if (this._rateLimitedUntil && Date.now() < this._rateLimitedUntil) return null;
       try {
         const res = await fetch('https://api.github.com/gists/' + this._gistId, {
           headers: { 'Authorization': 'Bearer ' + this._token, 'Accept': 'application/vnd.github+json' }
@@ -159,6 +162,8 @@
 
     async save(state) {
       if (!this.ready) return false;
+      // GitHub API 限流中：跳过请求，避免进一步消耗配额（_rateLimitedUntil 由上次 403 设置）
+      if (this._rateLimitedUntil && Date.now() < this._rateLimitedUntil) return false;
       const content = JSON.stringify(this._safePayload(state));
       try {
         const res = await fetch('https://api.github.com/gists/' + this._gistId, {
@@ -166,7 +171,19 @@
           headers: { 'Authorization': 'Bearer ' + this._token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
           body: JSON.stringify({ files: { 'langworkbench_state.json': { content } } })
         });
-        if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error('HTTP ' + res.status + ' ' + t.slice(0, 120)); }
+        if (res.status === 403) {
+          const t = await res.text().catch(() => '');
+          if (/rate limit/i.test(t)) {
+            const reset = Number(res.headers.get('X-RateLimit-Reset')) || 0;
+            this._rateLimitedUntil = reset ? reset * 1000 : Date.now() + 60 * 60 * 1000;
+            this.error = 'GitHub API 限流中（约 ' + Math.ceil((this._rateLimitedUntil - Date.now()) / 60000) + ' 分钟后恢复）';
+            console.warn('[GistAdapter] 触发限流，预计恢复', new Date(this._rateLimitedUntil).toLocaleTimeString());
+            return false;
+          }
+          throw new Error('HTTP 403 ' + t.slice(0, 120));
+        }
+        if (!res.ok) { const t2 = await res.text().catch(() => ''); throw new Error('HTTP ' + res.status + ' ' + t2.slice(0, 120)); }
+        this._rateLimitedUntil = 0;   // 成功即清除限流标记
         return true;
       } catch (e) { this.error = e && e.message ? e.message : String(e); console.warn('[GistAdapter] 保存失败', e); return false; }
     },
@@ -485,29 +502,44 @@
      */
     _autosave() {
       this.state.updatedAt = Date.now();
+      const adapter = this.adapter;
+      // GitHub API 限流中：跳过本次上传与重试，状态提示等待恢复（避免无谓请求进一步消耗配额）
+      if (adapter && adapter._rateLimitedUntil && Date.now() < adapter._rateLimitedUntil) {
+        this._setStatus('ratelimit');
+        this._mirrorLocal();   // 仍更新本地镜像，确保本地不丢数据（云端恢复后自动补传）
+        return;
+      }
       this._setStatus('saving');
       clearTimeout(this._saveTimer);
+      // 防抖 2.5s：合并短时间内的连续操作，显著降低 GitHub API 请求频次，避免触发限流
       this._saveTimer = setTimeout(async () => {
-        const ok = await this.adapter.save(this.state);
+        const ok = await adapter.save(this.state);
         if (ok) {
           this._setStatus('saved');
           this._mirrorLocal();       // 始终保留一份本地缓存（云端不可达时可用）
+        } else if (adapter && adapter._rateLimitedUntil && Date.now() < adapter._rateLimitedUntil) {
+          this._setStatus('ratelimit');
+          this._mirrorLocal();
+          this._scheduleRateLimitRetry();   // 限流中：等 reset 后自动补传，不消耗额外配额
         } else {
           this._setStatus('offline');
           this._mirrorLocal();
           this._scheduleRetry();     // 瞬时网络失败：自动重试，无需用户操作
         }
-      }, 300);
+      }, 2500);
     },
 
     // 上传失败后自动重试（指数退避，最多数次），应对 GitHub API / 网络的瞬时抖动。
-    // 同步开关被关闭（切回本地）后自动停止，避免无谓请求。
+    // 同步开关被关闭（切回本地）后自动停止，避免无谓请求。限流期间不进入此重试路径。
     _scheduleRetry() {
       if (this._retryTimer || this._gistEnabled === false) return;
+      const adapter = this.adapter;
       let attempt = 0;
       const tryOnce = async () => {
         if (this._gistEnabled === false) { this._retryTimer = null; return; }
-        const ok = await this.adapter.save(this.state);
+        // 限流中：放弃重试，交给定时补传逻辑（_scheduleRateLimitRetry）
+        if (adapter && adapter._rateLimitedUntil && Date.now() < adapter._rateLimitedUntil) { this._retryTimer = null; return; }
+        const ok = await adapter.save(this.state);
         if (ok) { this._setStatus('saved'); this._mirrorLocal(); this._retryTimer = null; return; }
         attempt++;
         if (attempt >= 6) { this._retryTimer = null; return; }
@@ -516,11 +548,33 @@
       this._retryTimer = setTimeout(tryOnce, 4000);
     },
 
+    // 限流专用补传：等到 GitHub 限流恢复时间戳（X-RateLimit-Reset）之后再补传一次，避免重试消耗配额
+    _scheduleRateLimitRetry() {
+      if (this._retryTimer || this._gistEnabled === false) return;
+      const adapter = this.adapter;
+      const wait = Math.max(2000, (adapter && adapter._rateLimitedUntil ? adapter._rateLimitedUntil : Date.now() + 60000) - Date.now());
+      this._retryTimer = setTimeout(async () => {
+        this._retryTimer = null;
+        if (this._gistEnabled === false) return;
+        const ok = await adapter.save(this.state);
+        if (ok) { this._setStatus('saved'); this._mirrorLocal(); }
+        else if (adapter && adapter._rateLimitedUntil && Date.now() < adapter._rateLimitedUntil) { this._setStatus('ratelimit'); this._scheduleRateLimitRetry(); }
+        else { this._setStatus('offline'); this._scheduleRetry(); }
+      }, wait);
+    },
+
     /** 立即落盘（页面隐藏/关闭前调用，防止防抖窗口内丢数据） */
     async flush() {
       clearTimeout(this._saveTimer);
-      const ok = await this.adapter.save(this.state);
-      this._setStatus(ok ? 'saved' : 'offline');
+      const adapter = this.adapter;
+      // 限流中强制落盘意义不大（会失败），但本地镜像已在 _autosave/mirrorLocal 中更新，不会丢数据
+      if (adapter && adapter._rateLimitedUntil && Date.now() < adapter._rateLimitedUntil) {
+        this._setStatus('ratelimit');
+        this._mirrorLocal();
+        return false;
+      }
+      const ok = await adapter.save(this.state);
+      this._setStatus(ok ? 'saved' : (adapter && adapter._rateLimitedUntil ? 'ratelimit' : 'offline'));
       return ok;
     },
 
