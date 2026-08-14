@@ -224,6 +224,7 @@
         gistKey: '',                            // 同步码 = Gist ID（多端共用同一码即共享同一份数据）
         ai: { enabled: false, baseUrl: '', apiKey: '', model: '' }  // AI 辅助（浏览器直连 OpenAI 兼容接口）
       },
+      learnSession: null,    // 今日学习会话（持久化 + 可同步）：{ date, themes, salt, focus, order, idx, langDone, langCheckedIn, dur, added[], judged }
       updatedAt: Date.now()
     };
   }
@@ -317,6 +318,10 @@
         };
       });
       base.checkins = ck;
+      // 今日学习会话（心情词包/打卡进度）：本地优先，避免接入同步时把刚生成的会话丢掉
+      if (this.state.learnSession && this.state.learnSession.date === todayKey()) {
+        base.learnSession = this.state.learnSession;
+      }
       return base;
     },
 

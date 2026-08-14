@@ -175,6 +175,10 @@
   // ============================================================
 
   function renderCapture() {
+    // 若当前没有内存中的会话，但持久化的今日会话存在（可能来自其他设备同步 / 本机重启），则恢复
+    if (!ui.learn && Store.state.learnSession && Store.state.learnSession.date === todayKey()) {
+      restoreLearn();
+    }
     if (!ui.learn) return renderThemePicker();
     return renderLearnSession();
   }
@@ -1048,9 +1052,9 @@
     }
     if (t.closest('#btnSurprise')) { startLearn([LangThemes.suggestTheme(todayKey())]); return; }
     if (t.closest('#btnManualAdd')) { openManualAdd(); return; }
-    if (t.closest('#btnBackTheme')) { pauseTimer(); ui.learn = null; render(); return; }
-    if (t.closest('#btnReshuffle')) { pauseTimer(); ui.learn.salt = (ui.learn.salt || 0) + 1; regenerateLearn(); return; }
-    if (t.closest('#btnFinishLater')) { pauseTimer(); ui.learn = null; render(); toast('已保存进度，随时继续', 'ok'); return; }
+    if (t.closest('#btnBackTheme')) { pauseTimer(); ui.learn = null; persistLearn(); render(); return; }  // 主动换主题：清空持久化的今日会话
+    if (t.closest('#btnReshuffle')) { pauseTimer(); ui.learn.salt = (ui.learn.salt || 0) + 1; regenerateLearn(); persistLearn(); render(); return; }
+    if (t.closest('#btnFinishLater')) { pauseTimer(); ui.learn = null; render(); toast('已保存进度，随时继续', 'ok'); return; }  // 保留 learnSession，下次进入 capture 自动恢复
 
     if (t.closest('#btnViewStats')) { ui.learn = null; switchView('stats'); return; }
     const lb = t.closest('.learn-btn');
@@ -1199,6 +1203,54 @@
       langCheckedIn: { en: false, ja: false, ko: false }  // 学完并确认打卡后标记
     };
     regenerateLearn();
+    persistLearn();
+  }
+
+  // 把内存中的今日学习会话序列化进 Store.state.learnSession（持久化 + 参与 GitHub 同步）。
+  // 注意：计时 activeStart 等临时态不入；added 是 Set 需转数组；不含任何 Token/Key。
+  function persistLearn() {
+    const L = ui.learn;
+    if (!L) {
+      Store.state.learnSession = null;
+      Store.commit();
+      return;
+    }
+    Store.state.learnSession = {
+      date: todayKey(),
+      themes: L.themes.slice(),
+      salt: L.salt || 0,
+      focus: L.focus || 'en',
+      order: L.order.slice(),
+      idx: L.idx || 0,
+      langDone: Object.assign({}, L.langDone),
+      langCheckedIn: Object.assign({}, L.langCheckedIn),
+      dur: Object.assign({}, L.dur),
+      added: Array.from(L.added || []),
+      judged: Object.assign({}, L.judged)
+    };
+    Store.commit();
+  }
+
+  // 从持久化/同步来的 learnSession 恢复内存会话（pack 由 entries 实时重建）
+  function restoreLearn() {
+    const s = Store.state.learnSession;
+    if (!s || s.date !== todayKey()) { ui.learn = null; return; }
+    ui.learn = {
+      themes: (s.themes || []).slice(),
+      salt: s.salt || 0,
+      added: new Set(s.added || []),
+      judged: Object.assign({}, s.judged),
+      pack: null, total: 0,
+      order: (s.order || ['en', 'ja', 'ko']).slice(),
+      idx: s.idx || 0,
+      focus: s.focus || 'en',
+      dur: Object.assign({ en: 0, ja: 0, ko: 0 }, s.dur),
+      activeLang: null, activeStart: 0,
+      langDone: Object.assign({ en: false, ja: false, ko: false }, s.langDone),
+      langCheckedIn: Object.assign({ en: false, ja: false, ko: false }, s.langCheckedIn),
+      aiLoading: false
+    };
+    regenerateLearn();
   }
 
   // ---------- 学习计时（按语言） ----------
@@ -1302,7 +1354,7 @@
         const statsBtn = $('#lcStats');
         if (statsBtn) statsBtn.onclick = () => { c(); switchView('stats'); };
         const doneBtn = $('#lcDone');
-        if (doneBtn) doneBtn.onclick = () => { c(); L.langCheckedIn[lang] = true; render(); };   // 标记打卡完成，回到学习页显示「完成打卡」横幅
+        if (doneBtn) doneBtn.onclick = () => { c(); L.langCheckedIn[lang] = true; persistLearn(); render(); };   // 标记打卡完成，回到学习页显示「完成打卡」横幅
       }
     });
   }
@@ -1956,6 +2008,7 @@
               $('#clOk').onclick = async () => {
                 Store.state.entries = [];
                 Store.state.checkins = {};
+                Store.state.learnSession = null;   // 清空今日学习会话，避免清完又被恢复的会话带回到选心情页之外
                 Store.state.updatedAt = Date.now();
                 // 已开启 GitHub 同步时：先把「空数据」覆盖到云端 Gist，使手机/电脑等所有已同步设备
                 // 下次拉取也会变成空，否则云端仍保留旧记录，清完重新打开会从云端把那 4 天拉回来。
