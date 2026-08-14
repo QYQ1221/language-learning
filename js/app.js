@@ -174,10 +174,21 @@
   // 视图：今日录入
   // ============================================================
 
+  // 会话身份：同一天 + 相同心情主题 + 相同打乱盐值 视为「同一个会话」；否则视为其他设备改了心情
+  function learnIdentity(L) {
+    if (!L) return '';
+    return (L.date || '') + '|' + (L.themes || []).join(',') + '|' + (L.salt || 0);
+  }
+
   function renderCapture() {
-    // 若当前没有内存中的会话，但持久化的今日会话存在（可能来自其他设备同步 / 本机重启），则恢复
-    if (!ui.learn && Store.state.learnSession && Store.state.learnSession.date === todayKey()) {
-      restoreLearn();
+    const s = Store.state.learnSession;
+    const today = todayKey();
+    // 跨端心情同步：云端/持久化的今日会话与本地内存会话「身份」不同（其他设备改了心情），
+    // 则采用云端会话，避免手机端一直显示自己之前选的心情。身份相同则保留本机进度（不打断学习）。
+    if (s && s.date === today) {
+      if (!ui.learn || learnIdentity(ui.learn) !== learnIdentity(s)) {
+        restoreLearn();
+      }
     }
     if (!ui.learn) return renderThemePicker();
     return renderLearnSession();
@@ -617,8 +628,8 @@
             <option value="">全部标签</option>
             ${tags.map(t => `<option value="${esc(t)}" ${ui.filter.tag === t ? 'selected' : ''}>#${esc(t)}</option>`).join('')}
           </select>` : ''}
-          <button class="btn btn-icon btn-ghost" id="btnExpandAll" title="展开全部"><svg><use href="#i-expand"/></svg></button>
-          <button class="btn btn-icon btn-ghost" id="btnCollapseAll" title="全部折叠"><svg><use href="#i-collapse"/></svg></button>
+          <button class="btn btn-sm" id="btnExpandAll">展开全部</button>
+          <button class="btn btn-sm" id="btnCollapseAll">全部折叠</button>
         </div>
       </div>
 
