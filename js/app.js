@@ -238,6 +238,12 @@
           + 自己加词（辅助录入）
         </button>
       </div>
+
+      <div style="margin-top:8px">
+        <button class="btn btn-sm btn-ghost" id="btnFillDemo" style="width:100%;justify-content:center;padding:9px">
+          📥 填充示例数据（演示用，不自动出现）
+        </button>
+      </div>
     `;
   }
 
@@ -1048,6 +1054,14 @@
     }
     if (t.closest('#btnSurprise')) { startLearn([LangThemes.suggestTheme(todayKey())]); return; }
     if (t.closest('#btnManualAdd')) { openManualAdd(); return; }
+    if (t.closest('#btnFillDemo')) {
+      if (Store.state.entries.length) { toast('已有数据，无需填充示例', 'warn'); return; }
+      fillDemoData();
+      Store.commit();
+      render();
+      toast('已填充示例数据（演示用）', 'ok');
+      return;
+    }
     if (t.closest('#btnBackTheme')) { pauseTimer(); ui.learn = null; render(); return; }
     if (t.closest('#btnReshuffle')) { pauseTimer(); ui.learn.salt = (ui.learn.salt || 0) + 1; regenerateLearn(); return; }
     if (t.closest('#btnFinishLater')) { pauseTimer(); ui.learn = null; render(); toast('已保存进度，随时继续', 'ok'); return; }
@@ -2317,10 +2331,10 @@
   }
 
   // ============================================================
-  // 首次使用示例数据
+  // 示例数据（手动触发，不再自动注入；保证新设备/清空后从 0 开始）
   // ============================================================
 
-  function seedIfEmpty() {
+  function fillDemoData() {
     if (Store.state.entries.length) return;
     const today = todayKey();
     const samples = [
@@ -2381,7 +2395,6 @@
     applyTheme(Store.state.settings.theme || 'light');
     ui.lang = Store.state.settings.activeLang || 'all';
 
-    seedIfEmpty();
     bindGlobal();
     bindSyncStatus();
     // 若已开启 GitHub 同步，启动后自动接入（失败则降级本地，不打断使用）
