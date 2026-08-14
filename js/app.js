@@ -1040,12 +1040,12 @@
       try {
         await Store.flush();                                                       // 先落本地镜像
         await Gist.init({ token: s.gistToken, key: s.gistKey });
-        if (!await Gist.save(Store.state)) throw new Error(Gist.error || '上传失败');   // 推：本机最新写云端
-        const remote = await Gist.load();                                          // 拉：取回云端最新并应用（含其它端改动）
+        const remote = await Gist.load();                                          // 先拉：取回云端最新并应用（含其它端改动）
         if (remote && typeof remote === 'object') {
-          if (Store._applyRemote(remote)) { Store._emit(); if (Store.onRemote) Store.onRemote(); toast('已同步（合并了云端更新）', 'ok'); }
-          else toast('已同步到云端', 'ok');
-        } else toast('已同步到云端', 'ok');
+          if (Store._applyRemote(remote)) { Store._emit(); if (Store.onRemote) Store.onRemote(); }
+        }
+        if (!await Gist.save(Store.state)) throw new Error(Gist.error || '上传失败');   // 后推：把合并后的最新（含云端更新）写回云端，确保两端对齐
+        toast('已同步（已合并云端更新）', 'ok');
         Store._setStatus('saved');
       } catch (e) {
         Store._setStatus('offline');

@@ -370,10 +370,11 @@
       // 远端 Gist 中的 ai.apiKey 始终为空（上传前已剥离），此处用本地 Key 覆盖，确保 Key 永不被同步清空
       this.state.settings.ai = Object.assign({}, this.state.settings.ai || {}, { apiKey: keepAiKey });
       this._fixLearnSession();
-      // 云端会话若比本地旧（或云端无会话），保留本地今日会话，避免覆盖刚生成/正在学习的会话
+      // 云端会话冲突解决：仅当本地会话「严格更新」时才保留本地；否则采用云端（平局/云端更新时也采用云端），
+      // 保证多端收敛到同一份内容（避免两端各自保留本地而永不合并，却都显示「已同步」）。
       const remoteLS = remoteState.learnSession;
       const remoteLSUpdated = (remoteLS && typeof remoteLS === 'object') ? (remoteLS.updatedAt || 0) : -1;
-      if (localLS && typeof localLS === 'object' && localLSUpdated >= remoteLSUpdated) {
+      if (localLS && typeof localLS === 'object' && localLSUpdated > remoteLSUpdated) {
         this.state.learnSession = localLS;
         this._fixLearnSession();
       }
