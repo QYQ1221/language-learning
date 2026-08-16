@@ -1613,7 +1613,7 @@
           if (seen.has(key)) return;
           seen.add(key);
           if (arr.some(x => (x.text || '').toLowerCase() === it.text.toLowerCase())) return;
-          const bid = 'ai:' + it.lang + ':' + it.text.toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '');
+          const bid = 'ai:' + it.lang + ':' + it.text.toLowerCase().replace(/\s+/g, '_');
           it._bankId = bid;
           arr.push(it);
           added++;
