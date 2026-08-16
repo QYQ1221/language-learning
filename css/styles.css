@@ -490,7 +490,6 @@ button, input, textarea, select {
 .badge-ai { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); }
 
 /* 学习单词卡来源标签（AI / 自建） */
-.learn-tagrow { margin-bottom: 6px; }
 .word-tag {
   display: inline-flex;
   align-items: center;
@@ -502,6 +501,7 @@ button, input, textarea, select {
   border-radius: 999px;
   line-height: 1.6;
 }
+.learn-read .word-tag { margin-left: auto; }
 .tag-ai { background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #ffffff)); color: #fff; }
 .tag-me { background: var(--en-soft); color: var(--en); border: 1px solid color-mix(in srgb, var(--en) 30%, var(--border)); }
 

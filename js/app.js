@@ -378,12 +378,12 @@
     return `
       <div class="learn-card ${added ? 'done' : ''}" data-bank="${esc(it._bankId)}">
         <div class="learn-front">
-          ${tag ? `<div class="learn-tagrow">${tag}</div>` : ''}
           <div class="learn-text">${esc(it.text)} ${spk(it.text, it.lang)}</div>
           <div class="learn-read">
             ${it.reading ? `<span>${esc(it.reading)}</span>` : ''}
             ${it.pitch ? `<span class="learn-pitch">${esc(it.pitch)}型</span>` : ''}
             ${it.hanja ? `<span class="learn-hanja">［${esc(it.hanja)}］</span>` : ''}
+            ${tag}
           </div>
         </div>
         <div class="learn-back">
