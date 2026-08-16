@@ -1609,7 +1609,7 @@
           arr.push(it);
           added++;
           // 自动加入词汇库（词库），按 bankId 去重避免重复
-          if (!Store.state.entries.some(e => e.bankId === bid)) {
+          if (!Store.state.entries.some(e => e._bankId === bid)) {
             Store.addEntry({
               lang: it.lang, type: it.type || 'word', text: it.text,
               reading: it.reading, pitch: it.pitch, hanja: it.hanja, pos: it.pos,
@@ -1622,6 +1622,7 @@
         topUpBank();   // AI 不足则用词库词补满到 perLang
         L.total = langs.reduce((a, lg) => a + ((L.pack && L.pack[lg]) || []).length, 0);
         L.aiLoading = false;
+        persistLearn();   // 关键：把 AI 补充后的完整词包写回 learnSession，否则刷新/同步后 AI 词丢失
         if (added) toast('AI 已补充 ' + added + ' 个词（已加入词库 ' + saved + '）', 'ok');
         render();
       })
@@ -1630,6 +1631,7 @@
         topUpBank();   // AI 失败也保证当日词量达标
         L.total = langs.reduce((a, lg) => a + ((L.pack && L.pack[lg]) || []).length, 0);
         L.aiLoading = false;
+        persistLearn();   // 失败也要持久化兜底补满后的词包
         render();
         toast('AI 补充失败：' + (err && err.message ? err.message : err), 'warn');
       });
@@ -1647,7 +1649,7 @@
     const known = judge === 'know';
     const themeLabel = L.themes.map(themeName).join(' · ');
     // 按 bankId 去重：AI 拓展词已在生成时写入词库，这里更新其掌握程度而非重复添加
-    const existing = Store.state.entries.find(e => e.bankId === bankId);
+    const existing = Store.state.entries.find(e => e._bankId === bankId);
     if (existing) {
       Store.updateEntry(existing.id, { level: known ? 1 : 0 });
     } else {
