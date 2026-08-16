@@ -429,31 +429,75 @@
       try { LocalAdapter.save(this.state); } catch (e) { /* 缓存失败不影响主流程 */ }
     },
 
-    /** 应用远端推送（实时同步）：整篇替换；用 updatedAt 去重，避免本端写入的回声造成 save→watch 死循环。 */
+    /**
+     * 应用远端推送（实时同步 / 手动同步拉取）。
+     * 关键：合并（并集）而非整篇替换——本地条目、打卡、今日会话永不因云端为空/陈旧而丢失。
+     *  - 条目：按 id 并集，冲突取 updatedAt 较新者；
+     *  - 打卡：按天并集，布尔 OR、分钟取最大（与 _mergeForCloud 一致）；
+     *  - 设置：以云端为准，但本地 Token/同步码/AI Key 始终保留（云端已剥离凭证）；
+     *  - 今日会话：仅当云端会话「严格更新」时才采用云端，否则保留本地（云端为空也不再清空本地）。
+     * 回声去重：远端 updatedAt 与本地相同则跳过，避免 save→watch 死循环。
+     */
     _applyRemote(remoteState) {
       if (!remoteState || typeof remoteState !== 'object') return false;
       if (remoteState.updatedAt && this.state.updatedAt === remoteState.updatedAt) return false; // 回声去重
       const keepToken = this.state.settings.gistToken;   // 远端 Gist 不含 token，保留本地凭证避免刷新后重连失败
       const keepKey = this.state.settings.gistKey;
-      const keepAiKey = (this.state.settings.ai && this.state.settings.ai.apiKey) || ''; // AI Key 仅存本机，不被远端（已剥离）覆盖，避免同步把本地 Key 清空
-      // 今日会话冲突解决：本地会话比云端更新（或更近操作）时，保留本地，避免刚换的心情 / 刚生成的词包被旧云端数据打回
+      const keepAiKey = (this.state.settings.ai && this.state.settings.ai.apiKey) || ''; // AI Key 仅存本机，不被远端（已剥离）覆盖
+
+      // 条目：并集（按 id 去重），冲突取 updatedAt 较新的一方，绝不因云端为空/陈旧而清空本地条目
+      const byId = new Map();
+      (this.state.entries || []).forEach(e => { if (e && e.id) byId.set(e.id, e); });
+      (Array.isArray(remoteState.entries) ? remoteState.entries : []).forEach(e => {
+        if (!e || !e.id) return;
+        const local = byId.get(e.id);
+        if (!local) byId.set(e.id, e);                                          // 远端独有条目 → 加入
+        else if ((e.updatedAt || 0) > (local.updatedAt || 0)) byId.set(e.id, e); // 远端更新 → 采用
+      });
+      const mergedEntries = Array.from(byId.values());
+
+      // 打卡：按天并集，布尔 OR、分钟取最大（与 _mergeForCloud 一致）
+      const ck = {};
+      const dks = new Set([].concat(Object.keys(this.state.checkins || {}), Object.keys(remoteState.checkins || {})));
+      dks.forEach(dk => {
+        const lc = (this.state.checkins || {})[dk] || {};
+        const rc = (remoteState.checkins || {})[dk] || {};
+        ck[dk] = {
+          listening: !!(lc.listening || rc.listening),
+          speaking: !!(lc.speaking || rc.speaking),
+          reading: !!(lc.reading || rc.reading),
+          writing: !!(lc.writing || rc.writing),
+          minutes: Math.max(Number(lc.minutes) || 0, Number(rc.minutes) || 0)
+        };
+      });
+
+      // 设置：以云端为准，但本地 Token/同步码/AI Key 始终保留（云端已剥离凭证，不会被覆盖清空）
+      const mergedSettings = Object.assign(defaultState().settings, remoteState.settings || {}, {
+        gistToken: keepToken,
+        gistKey: keepKey,
+        ai: Object.assign({}, (remoteState.settings && remoteState.settings.ai) || {}, { apiKey: keepAiKey })
+      });
+
+      // 组装新 state：先继承本地全部字段，再用「云端合并结果」覆盖条目/打卡/设置——本地独有数据因此保留
+      const merged = Object.assign(defaultState(), this.state, remoteState, {
+        entries: mergedEntries,
+        checkins: ck,
+        settings: mergedSettings
+      });
+
+      // 今日学习会话冲突解决：仅当云端会话「严格更新」时才采用云端；否则保留本地，
+      // 避免刚生成的词包被空/旧云端数据打回（修复：云端为空时不再清空本地会话 → 生成今日学习才有效）。
       const localLS = this.state.learnSession;
-      const localLSUpdated = (localLS && typeof localLS === 'object') ? (localLS.updatedAt || 0) : -1;
-      this.state = Object.assign(defaultState(), remoteState);
-      this.state.settings = Object.assign(defaultState().settings, remoteState.settings || {});
-      this.state.settings.gistToken = keepToken;
-      this.state.settings.gistKey = keepKey;
-      // 远端 Gist 中的 ai.apiKey 始终为空（上传前已剥离），此处用本地 Key 覆盖，确保 Key 永不被同步清空
-      this.state.settings.ai = Object.assign({}, this.state.settings.ai || {}, { apiKey: keepAiKey });
-      this._fixLearnSession();
-      // 云端会话冲突解决：仅当本地会话「严格更新」时才保留本地；否则采用云端（平局/云端更新时也采用云端），
-      // 保证多端收敛到同一份内容（避免两端各自保留本地而永不合并，却都显示「已同步」）。
       const remoteLS = remoteState.learnSession;
+      const localLSUpdated = (localLS && typeof localLS === 'object') ? (localLS.updatedAt || 0) : -1;
       const remoteLSUpdated = (remoteLS && typeof remoteLS === 'object') ? (remoteLS.updatedAt || 0) : -1;
-      if (localLS && typeof localLS === 'object' && localLSUpdated > remoteLSUpdated) {
-        this.state.learnSession = localLS;
-        this._fixLearnSession();
+      if (remoteLS && typeof remoteLS === 'object' && remoteLSUpdated > localLSUpdated) {
+        merged.learnSession = remoteLS;
+      } else {
+        merged.learnSession = localLS;   // 云端为空或不过新 → 保留本地
       }
+      this._fixLearnSession(merged);
+      this.state = merged;
       this._migrate();
       this._mirrorLocal();       // 镜像到本地，云端离线也能恢复
       return true;
