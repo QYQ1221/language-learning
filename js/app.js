@@ -812,7 +812,7 @@
         <div class="stat-card">
           <div class="stat-label">⏰ 待复习</div>
           <div class="stat-value" style="${s.due > 0 ? 'color:var(--danger)' : ''}">${s.due}</div>
-          <div class="stat-foot">累计学习 ${Math.round(s.totalMinutes / 60 * 10) / 10} 小时</div>
+          <div class="stat-foot">累计学习 ${s.totalMinutes} 分钟</div>
         </div>
       </div>
 
