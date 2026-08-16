@@ -926,24 +926,7 @@ button, input, textarea, select {
 }
 
 .stat-unit { font-size: 13px; font-weight: 600; color: var(--text-3); margin-left: 2px; }
-.stat-foot { font-size: 11px; color: var(--text-3); margin-top: 3px; }
-
-.stat-dual {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
-}
-.stat-secondary { text-align: right; }
-.stat-value-sm {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  line-height: 1.15;
-  color: var(--text-2);
-}
-.stat-tag { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+.stat-foot { font-size: 11px; color: var(--text-3); margin-top: 4px; }
 
 .chart-grid {
   display: grid;

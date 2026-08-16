@@ -795,56 +795,24 @@
     return `
       <div class="stat-grid">
         <div class="stat-card">
-          <div class="stat-label">📅 学习打卡</div>
-          <div class="stat-dual">
-            <div class="stat-primary">
-              <div class="stat-value">${s.streak}<span class="stat-unit">天</span></div>
-              <div class="stat-tag">连续学习</div>
-            </div>
-            <div class="stat-secondary">
-              <div class="stat-value-sm">${s.completedDays}<span class="stat-unit">天</span></div>
-              <div class="stat-tag">完成打卡</div>
-            </div>
-          </div>
+          <div class="stat-label">🔥 连续学习</div>
+          <div class="stat-value">${s.streak}<span class="stat-unit">天</span></div>
+          <div class="stat-foot">完成打卡 ${s.completedDays} 天</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">📚 词汇量</div>
-          <div class="stat-dual">
-            <div class="stat-primary">
-              <div class="stat-value">${s.totalEntries}<span class="stat-unit">条</span></div>
-              <div class="stat-tag">新增词汇</div>
-            </div>
-            <div class="stat-secondary">
-              <div class="stat-value-sm">${s.todayAdded}<span class="stat-unit">条</span></div>
-              <div class="stat-tag">今日新增</div>
-            </div>
-          </div>
+          <div class="stat-label">📚 新增词汇</div>
+          <div class="stat-value">${s.totalEntries}<span class="stat-unit">条</span></div>
+          <div class="stat-foot">今日新增 ${s.todayAdded} 条</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">🎯 掌握情况</div>
-          <div class="stat-dual">
-            <div class="stat-primary">
-              <div class="stat-value">${s.learned}<span class="stat-unit">词</span></div>
-              <div class="stat-tag">已学习</div>
-            </div>
-            <div class="stat-secondary">
-              <div class="stat-value-sm">${s.mastered}<span class="stat-unit">词</span> <span style="font-size:12px;color:var(--ok)">${s.masterRate}%</span></div>
-              <div class="stat-tag">已掌握</div>
-            </div>
-          </div>
+          <div class="stat-label">🎯 已掌握</div>
+          <div class="stat-value">${s.mastered}<span class="stat-unit">词</span></div>
+          <div class="stat-foot">已学习 ${s.learned} 词 · 掌握率 ${s.masterRate}%</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">⏰ 复习计划</div>
-          <div class="stat-dual">
-            <div class="stat-primary">
-              <div class="stat-value" style="${s.due > 0 ? 'color:var(--danger)' : ''}">${s.due}</div>
-              <div class="stat-tag">待复习</div>
-            </div>
-            <div class="stat-secondary">
-              <div class="stat-value-sm">${Math.round(s.totalMinutes / 60 * 10) / 10}<span class="stat-unit">时</span></div>
-              <div class="stat-tag">累计学习</div>
-            </div>
-          </div>
+          <div class="stat-label">⏰ 待复习</div>
+          <div class="stat-value" style="${s.due > 0 ? 'color:var(--danger)' : ''}">${s.due}</div>
+          <div class="stat-foot">累计学习 ${Math.round(s.totalMinutes / 60 * 10) / 10} 小时</div>
         </div>
       </div>
 
