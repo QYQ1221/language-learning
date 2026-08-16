@@ -2195,6 +2195,7 @@
                 // 下次拉取也会变成空，否则云端仍保留旧记录，清完重新打开会从云端把那 4 天拉回来。
                 if (Store.state.settings.gistSync && Store.adapter.name === 'gist') {
                   const tok = Store.state.settings.gistToken, key = Store.state.settings.gistKey;
+                  Store.signalClearSync();   // 放行一次空上传 + 清掉最佳快照，避免已删数据复活/被拒上传
                   Store.disableGistKeep();   // 先停轮询、切回本地，保留 Token
                   const Gist = window.LangStore.GistAdapter;
                   if (Gist && tok && key) {
@@ -2560,6 +2561,9 @@
   async function boot() {
     try {
       await Store.init();
+      if (Store.hasRecoveredData()) {
+        toast('已从本机备份自动找回学习记录（之前被同步意外清空）', 'ok');
+      }
       loadDraft();
 
       applyTheme(Store.state.settings.theme || 'light');

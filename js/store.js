@@ -41,6 +41,28 @@
   const SRS_INTERVALS = [0, 1, 2, 4, 7, 15, 30, 60, 120];
 
   const STORAGE_KEY = 'lang-workbench-v1';
+  // 「最佳快照」键：始终保存本机见过的最完整数据（条目数只增不减），用于同步意外清空本地时自动找回。
+  // 与 STORAGE_KEY 分开存储，避免被同步写入的空状态一并覆盖。
+  const BEST_KEY = 'lang-workbench-best';
+  // 用户主动清空数据时临时置 true，允许把空状态上传到云端（清完让其它设备也清）；平时为 false，拒绝上传空数据。
+  let _allowEmptySync = false;
+
+  function readBestState() {
+    try {
+      const raw = global.localStorage.getItem(BEST_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function readBestN() {
+    const b = readBestState();
+    return b && Array.isArray(b.entries) ? b.entries.length : 0;
+  }
+  function writeBestSnapshot(state) {
+    try {
+      const n = Array.isArray(state.entries) ? state.entries.length : 0;
+      if (n >= readBestN()) global.localStorage.setItem(BEST_KEY, JSON.stringify(state)); // 仅当更完整才覆盖，绝不降级
+    } catch (e) { /* 无关紧要 */ }
+  }
 
   // ---------- 工具 ----------
 
@@ -134,6 +156,7 @@
     async save(state) {
       try {
         global.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        writeBestSnapshot(state);   // 同步维护「最佳快照」，供意外清空时找回
         return true;
       } catch (e) {
         console.error('[store] 保存失败', e);
@@ -169,31 +192,40 @@
       this._lastErrorType = '';
       // 限流中：跳过读取请求（与保存一致），避免进一步消耗配额；本地镜像仍可用
       if (this._rateLimitedUntil && Date.now() < this._rateLimitedUntil) { this._lastErrorType = 'ratelimit'; return null; }
-      try {
-        const res = await fetchWithTimeout('https://api.github.com/gists/' + this._gistId, {
-          headers: { 'Authorization': 'Bearer ' + this._token, 'Accept': 'application/vnd.github+json' }
-        });
-        if (res.status === 404) { this._lastErrorType = 'notfound'; return null; }
-        if (!res.ok) {
-          const t = await res.text().catch(() => '');
-          const err = classifyFetchError(new Error(t), res.status);
+      // 重试：GitHub API 偶发超时/网络抖动，多试两次能显著提高「启动时拉回云端好数据」的成功率
+      let lastErr = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const res = await fetchWithTimeout('https://api.github.com/gists/' + this._gistId, {
+            headers: { 'Authorization': 'Bearer ' + this._token, 'Accept': 'application/vnd.github+json' }
+          }, attempt === 0 ? 12000 : 8000);
+          if (res.status === 404) { this._lastErrorType = 'notfound'; return null; }
+          if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            const err = classifyFetchError(new Error(t), res.status);
+            this._lastErrorType = err.type;
+            this.error = err.message;
+            lastErr = err;
+            // 401/404/限流属确定性失败，重试无意义，直接返回
+            if (err.type === 'auth' || err.type === 'notfound' || err.type === 'ratelimit') return null;
+            continue;   // 其它（超时/网络/5xx）重试
+          }
+          const data = await res.json();
+          const file = data && data.files && data.files['langworkbench_state.json'];
+          if (!file || file.content == null) return null;
+          this.error = null;
+          this._lastErrorType = '';
+          return JSON.parse(file.content);
+        } catch (e) {
+          const err = classifyFetchError(e, null);
           this._lastErrorType = err.type;
           this.error = err.message;
-          console.warn('[GistAdapter] 读取失败', res.status, t);
-          return null;
+          lastErr = err;
+          continue;   // 超时/网络抖动重试
         }
-        const data = await res.json();
-        const file = data && data.files && data.files['langworkbench_state.json'];
-        if (!file || file.content == null) return null;
-        this.error = null;
-        return JSON.parse(file.content);
-      } catch (e) {
-        const err = classifyFetchError(e, null);
-        this._lastErrorType = err.type;
-        this.error = err.message;
-        console.warn('[GistAdapter] 读取失败', e);
-        return null;
       }
+      if (lastErr && lastErr.type === 'timeout') this._lastErrorType = 'timeout';
+      return null;
     },
 
     // 上传到 Gist 前剥离全部凭证（Token、同步码、AI Key），避免把凭证明文写进 Gist 文件。
@@ -213,6 +245,17 @@
       this._lastErrorType = '';
       // GitHub API 限流中：跳过请求，避免进一步消耗配额（_rateLimitedUntil 由上次 403 设置）
       if (this._rateLimitedUntil && Date.now() < this._rateLimitedUntil) { this._lastErrorType = 'ratelimit'; return false; }
+      // 防丢兜底：本机曾有过数据（最佳快照非空）却要上传空状态 → 拒绝，避免把云端所有设备一并清空。
+      // 仅用户主动清空（_allowEmptySync=true）时才放行。
+      if (!_allowEmptySync) {
+        const n = (state && state.entries) ? state.entries.length : 0;
+        if (n === 0 && readBestN() > 0) {
+          this._lastErrorType = 'emptyguard';
+          this.error = '已阻止上传空数据（避免清空云端所有设备），你本机仍有备份';
+          console.warn('[GistAdapter] 拒绝上传空数据');
+          return false;
+        }
+      }
       const content = JSON.stringify(this._safePayload(state));
       try {
         const res = await fetchWithTimeout('https://api.github.com/gists/' + this._gistId, {
@@ -348,8 +391,33 @@
         this.state = Object.assign(defaultState(), loaded);
         this.state.settings = Object.assign(defaultState().settings, loaded.settings || {});
       }
+      // 防丢兜底：主数据被同步意外清空（条目/打卡/会话全空），但「最佳快照」仍有数据 → 自动从快照恢复，
+      // 避免一次同步抖动就把全部学习记录抹掉且无法找回。
+      const best = readBestState();
+      const mainEmpty = (!this.state.entries || this.state.entries.length === 0)
+        && (!this.state.checkins || Object.keys(this.state.checkins).length === 0)
+        && !this.state.learnSession;
+      const bestHas = best && Array.isArray(best.entries)
+        && (best.entries.length > 0 || (best.checkins && Object.keys(best.checkins).length > 0));
+      if (mainEmpty && bestHas) {
+        this.state = Object.assign(defaultState(), best);
+        this.state.settings = Object.assign(defaultState().settings, best.settings || {});
+        this._recoveredFromBest = true;
+      }
       this._migrate();
       return this.state;
+    },
+
+    /** 本机是否存在可恢复的「最佳快照」（供 UI 提示用户数据已自动找回） */
+    hasRecoveredData() {
+      return !!this._recoveredFromBest;
+    },
+
+    /** 用户主动清空（清记录 / 清空全部）时调用：放行一次空数据上传，并清除最佳快照以免复活已删数据 */
+    signalClearSync() {
+      _allowEmptySync = true;
+      try { if (global.localStorage) global.localStorage.removeItem(BEST_KEY); } catch (e) {}
+      setTimeout(() => { _allowEmptySync = false; }, 5000);
     },
 
     _migrate() {
@@ -1114,6 +1182,7 @@
 
     clearAll() {
       this.state = defaultState();
+      try { if (global.localStorage) global.localStorage.removeItem(BEST_KEY); } catch (e) {}
       this.commit();
     }
   };
