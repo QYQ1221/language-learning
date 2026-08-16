@@ -381,7 +381,9 @@
           <div class="learn-text">${esc(it.text)} ${spk(it.text, it.lang)}</div>
           <div class="learn-read">
             ${it.reading ? `<span>${esc(it.reading)}</span>` : ''}
-            ${it.pitch ? `<span class="learn-pitch">${esc(it.pitch)}型</span>` : ''}
+            ${it.lang === 'ja'
+              ? (it.romaji ? `<span class="learn-pitch">${esc(it.romaji)}</span>` : (it.pitch ? `<span class="learn-pitch">${esc(it.pitch)}型</span>` : ''))
+              : (it.pitch ? `<span class="learn-pitch">${esc(it.pitch)}型</span>` : '')}
             ${it.hanja ? `<span class="learn-hanja">［${esc(it.hanja)}］</span>` : ''}
             ${tag}
           </div>
@@ -743,7 +745,7 @@
 
         <div class="flashcard" id="flashcard">
           <div class="flash-front">${esc(e.text)} <button class="spk" data-spk-text="${esc(e.text)}" data-spk-lang="${e.lang}" title="朗读单词">${icon('i-volume')}</button></div>
-          ${revealed && e.reading ? `<div class="flash-reading">${esc(e.reading)}${e.pitch ? ` ・${esc(e.pitch)}型` : ''}</div>` : ''}
+          ${revealed && e.reading ? `<div class="flash-reading">${esc(e.reading)}${e.lang === 'ja' ? (e.romaji ? ` ・${esc(e.romaji)}` : (e.pitch ? ` ・${esc(e.pitch)}型` : '')) : (e.pitch ? ` ・${esc(e.pitch)}型` : '')}</div>` : ''}
 
           ${revealed ? `
             <div class="flash-back">
@@ -1650,7 +1652,7 @@
           if (!Store.state.entries.some(e => e._bankId === bid)) {
             Store.addEntry({
               lang: it.lang, type: it.type || 'word', text: it.text,
-              reading: it.reading, pitch: it.pitch, hanja: it.hanja, pos: it.pos,
+              reading: it.reading, pitch: it.pitch, romaji: it.romaji, hanja: it.hanja, pos: it.pos,
               meaning: it.meaning, example: it.example, exampleTrans: it.exampleTrans,
               source: 'AI 补充 · ' + themeLabel, tags: it.tags || [], level: 0, bankId: bid,
               learned: false   // AI 补充词只进词库，不算学过；只有用户点击「认识/不认识」后才算
@@ -1694,7 +1696,7 @@
     } else {
       Store.addEntry({
         lang: item.lang, type: item.type || 'word',
-        text: item.text, reading: item.reading, pitch: item.pitch, hanja: item.hanja,
+        text: item.text, reading: item.reading, pitch: item.pitch, romaji: item.romaji, hanja: item.hanja,
         pos: item.pos, meaning: item.meaning, example: item.example, exampleTrans: item.exampleTrans,
         source: '每日词包 · ' + themeLabel,
         tags: [themeLabel].concat(item.tags || []),
@@ -1723,7 +1725,7 @@
   function openManualAdd() {
     ui.manual = { cn: '', lang: 'en', f: {} };
     ['en', 'ja', 'ko'].forEach(l => {
-      ui.manual.f[l] = { text: '', reading: '', extra: '', meaning: '', example: '', exampleTrans: '', tags: '', pos: '' };
+      ui.manual.f[l] = { text: '', reading: '', romaji: '', extra: '', meaning: '', example: '', exampleTrans: '', tags: '', pos: '' };
     });
     const M = ui.manual;
 
@@ -1731,6 +1733,11 @@
       const lg = M.lang, cfg = FIELD_CONFIG[lg], f = M.f[lg];
       return `
         <div class="form-grid">
+          ${lg === 'ja' ? `
+          <div class="field span-2">
+            <label class="label">罗马音 <span class="hint">romaji</span></label>
+            <input class="input" id="ma-romaji" value="${esc(f.romaji)}" placeholder="minna" style="font-family:var(--mono)">
+          </div>` : ''}
           <div class="field span-2" style="margin-bottom:12px">
             <label class="label">${cfg.textLabel} <span style="color:var(--danger)">*</span></label>
             <div style="display:flex;gap:8px;align-items:stretch">
@@ -1791,7 +1798,7 @@
         function bindInner() {
           const f = M.f[M.lang];
           const set = (sel, key) => { const el = $(sel); if (el) el.addEventListener('input', () => { f[key] = el.value; }); };
-          set('#ma-text', 'text'); set('#ma-reading', 'reading'); set('#ma-extra', 'extra');
+          set('#ma-text', 'text'); set('#ma-reading', 'reading'); set('#ma-romaji', 'romaji'); set('#ma-extra', 'extra');
           set('#ma-meaning', 'meaning'); set('#ma-example', 'example'); set('#ma-exampleTrans', 'exampleTrans'); set('#ma-tags', 'tags');
           const maAi = $('#maAi');
           if (maAi) maAi.onclick = async () => {
@@ -1806,6 +1813,7 @@
               if (r) {
                 const f = M.f[lg];
                 if (r.reading) f.reading = r.reading;
+                if (r.romaji) f.romaji = r.romaji;
                 if (r.pos) f.pos = r.pos;
                 if (r.meaning) f.meaning = r.meaning;
                 if (r.example) f.example = r.example;
@@ -1903,6 +1911,7 @@
             const patch = {
               lang: l, type: 'word', text,
               reading: (f.reading || '').trim(),
+              romaji: (f.romaji || '').trim(),
               meaning, example: (f.example || '').trim(),
               exampleTrans: (f.exampleTrans || '').trim(),
               pos: (f.pos || '').trim(),
@@ -1917,7 +1926,7 @@
               if (!ui.learn.pack[l].some(x => x._bankId === bid)) {
                 ui.learn.pack[l].push({
                   _bankId: bid, lang: l, type: 'word', text,
-                  reading: patch.reading, meaning: patch.meaning,
+                  reading: patch.reading, romaji: patch.romaji, meaning: patch.meaning,
                   example: patch.example, exampleTrans: patch.exampleTrans,
                   pos: patch.pos, source: '自己添加', isManual: true
                 });

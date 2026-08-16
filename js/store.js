@@ -832,6 +832,7 @@
         text: (data.text || '').trim(),
         reading: (data.reading || '').trim(),
         pitch: (data.pitch || '').trim(),      // 日语声调
+        romaji: (data.romaji || '').trim(),    // 日语罗马音（AI/手动补充，主题词库无）
         hanja: (data.hanja || '').trim(),      // 韩语汉字词
         pos: (data.pos || '').trim(),          // 词性
         meaning: (data.meaning || '').trim(),
@@ -866,6 +867,7 @@
           text: (d.text || '').trim(),
           reading: (d.reading || '').trim(),
           pitch: (d.pitch || '').trim(),
+          romaji: (d.romaji || '').trim(),
           hanja: (d.hanja || '').trim(),
           pos: (d.pos || '').trim(),
           meaning: (d.meaning || '').trim(),

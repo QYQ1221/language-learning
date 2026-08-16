@@ -165,11 +165,11 @@
     const langs = opts.langs || ['en', 'ja', 'ko'];
     const perLang = opts.perLang || 5;
     const existing = opts.existing || [];
-    const system = '你是三语（英语/日语/韩语）词汇教学助手。请根据用户选定的学习主题，生成贴合该主题的额外生词，补充进今日学习词包。要求：单词真实常用、与主题强相关、难度适中；日语给出假名读音，韩语给出罗马音，英语给出 IPA 音标；例句简洁自然并附中文翻译；不要重复已给词。';
+    const system = '你是三语（英语/日语/韩语）词汇教学助手。请根据用户选定的学习主题，生成贴合该主题的额外生词，补充进今日学习词包。要求：单词真实常用、与主题强相关、难度适中；日语给出假名读音并另给罗马音，韩语给出罗马音，英语给出 IPA 音标；例句简洁自然并附中文翻译；不要重复已给词。';
     const user = '学习主题：' + (themes || '日常通用') +
       '\n已生成词（请勿重复）：' + (existing.join('、') || '无') +
       '\n请为以下每种语言各生成 ' + perLang + ' 个生词：' + langs.join(', ') + '。' +
-      '\n只返回一个 JSON 数组，每个元素结构：{"lang":"en|ja|ko","text":"原文","reading":"读音","pos":"词性（如 n./v./adj.）","meaning":"中文释义","example":"目标语言例句","exampleTrans":"例句中文翻译","tags":["主题标签"]}。必须只输出这一个合法 JSON 数组，所有字符串用半角双引号(")，不要中文引号“”，不要任何解释文字，不要 markdown 代码块。';
+      '\n只返回一个 JSON 数组，每个元素结构：{"lang":"en|ja|ko","text":"原文","reading":"读音","romaji":"罗马音（仅日语填写，其他语言留空字符串）","pos":"词性（如 n./v./adj.）","meaning":"中文释义","example":"目标语言例句","exampleTrans":"例句中文翻译","tags":["主题标签"]}。必须只输出这一个合法 JSON 数组，所有字符串用半角双引号(")，不要中文引号“”，不要任何解释文字，不要 markdown 代码块。';
     const data = await chat(system, user, { temperature: 0.85 });
     if (!Array.isArray(data)) return [];
     const LANGSET = { en: 1, ja: 1, ko: 1 };
@@ -179,6 +179,7 @@
         lang: x.lang,
         text: String(x.text).trim(),
         reading: (x.reading || '').trim(),
+        romaji: (x.romaji || x.romaja || x['罗马音'] || '').trim(),
         pos: (x.pos || '').trim(),
         meaning: String(x.meaning).trim(),
         example: (x.example || '').trim(),
@@ -200,8 +201,8 @@
       '只返回一个合法 JSON 对象，所有字符串用半角双引号 "，不要用中文引号“”；不要任何解释文字、不要 markdown 代码块。' +
       'reading 填真实读音，meaning 填真实中文释义，example 用目标语言写真实例句。';
     const user = '目标语言：' + langName + '\n单词：' + text +
-      '\n请返回完整 JSON（仅一个对象）：{"reading":"真实读音","pos":"词性","meaning":"准确中文释义","example":"一句真实例句","exampleTrans":"例句中文翻译","tags":["标签1","标签2"]}。' +
-      '\n要求：meaning 必填；reading 不要写"读音（英语 IPA / 日语假名 / 韩语罗马音）"这种说明文字，必须写该单词的真实读音；example 不要写"一句地道的目标语言例句"这种说明文字，必须写真实例句。只输出这个 JSON 对象。';
+      '\n请返回完整 JSON（仅一个对象）：{"reading":"真实读音","romaji":"罗马音（仅日语填写，其他语言留空字符串）","pos":"词性","meaning":"准确中文释义","example":"一句真实例句","exampleTrans":"例句中文翻译","tags":["标签1","标签2"]}。' +
+      '\n要求：meaning 必填；reading 不要写"读音（英语 IPA / 日语假名 / 韩语罗马音）"这种说明文字，必须写该单词的真实读音；日语请同时在 romaji 填写罗马音；example 不要写"一句地道的目标语言例句"这种说明文字，必须写真实例句。只输出这个 JSON 对象。';
     const data = await chat(system, user, { temperature: 0.35, max_tokens: 1024 });
     if (!data || typeof data !== 'object') { LangAI.lastError = { raw: String(data), type: 'shape' }; return null; }
     // 兼容字段名：部分模型会用别名或中文键（释义/例句/读音/标签等）
@@ -236,6 +237,7 @@
     }
     const out = {
       reading: pick(data, ['reading', 'pronunciation', 'phonetic', '音标', '读音', '拼音']),
+      romaji: pick(data, ['romaji', '罗马音', 'romaja']),
       pos: pick(data, ['pos', 'partOfSpeech', '词性', 'part']),
       meaning,
       example: pick(data, ['example', '例句', 'sentence']),
@@ -254,7 +256,7 @@
     const extraHint = lang === 'ja' ? 'extra 填声调（如 0〜4 型，可空）' : lang === 'ko' ? 'extra 填汉字词（可空）' : 'extra 可空';
     const system = '你是' + langName + '词汇教学助手。根据用户给出的中文概念，给出最贴切的' + langName + '单词及中文学习者所需字段。释义 meaning 用英文撰写，例句翻译 exampleTrans 用中文。只返回一个合法 JSON 对象，不要使用中文引号“”，不要解释文字，不要 markdown 代码块。';
     const user = '中文概念：' + concept +
-      '\n请返回' + langName + '单词卡片，结构：{"text":"原文（' + langName + '原生文字）","reading":"读音（英语 IPA / 日语假名 / 韩语罗马音）","pos":"词性","meaning":"用英文撰写的释义","example":"一句地道的' + langName + '例句","exampleTrans":"例句中文翻译","tags":["1-3 个主题标签"],"extra":"' + extraHint + '"}。';
+      '\n请返回' + langName + '单词卡片，结构：{"text":"原文（' + langName + '原生文字）","reading":"读音（英语 IPA / 日语假名 / 韩语罗马音）","romaji":"罗马音（仅日语填写，其他语言留空字符串）","pos":"词性","meaning":"用英文撰写的释义","example":"一句地道的' + langName + '例句","exampleTrans":"例句中文翻译","tags":["1-3 个主题标签"],"extra":"' + extraHint + '"}。';
     const data = await chat(system, user, { temperature: 0.35, max_tokens: 1024 });
     if (!data || typeof data !== 'object') return null;
     // 兼容：模型可能误返回 {en/ja/ko:{...}} 三语格式
@@ -282,6 +284,7 @@
     return {
       text: String(x.text).trim(),
       reading: pick(x, ['reading', 'pronunciation', 'phonetic', '音标', '读音', '拼音']),
+      romaji: pick(x, ['romaji', '罗马音', 'romaja']),
       pos: pick(x, ['pos', 'partOfSpeech', '词性', 'part']),
       meaning,
       example: pick(x, ['example', '例句', 'sentence']),
