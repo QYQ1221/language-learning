@@ -437,7 +437,7 @@
       for (const dk in this.state.checkins) {
         const rec = this.state.checkins[dk];
         if (rec && (rec.en || rec.ja || rec.ko)) {
-          const fixed = { listening: false, speaking: false, reading: false, writing: false, minutes: 0 };
+          const fixed = { listening: false, speaking: false, reading: false, writing: false, minutes: 0, studySeconds: 0 };
           for (const lg of ['en', 'ja', 'ko']) {
             const lr = rec[lg];
             if (lr) {
@@ -451,6 +451,7 @@
             if (typeof rec[k] !== 'boolean') rec[k] = false;
           });
           if (typeof rec.minutes !== 'number') rec.minutes = 0;
+          if (typeof rec.studySeconds !== 'number') rec.studySeconds = 0;
           if (typeof rec.completed !== 'boolean') rec.completed = false;
         }
       }
@@ -912,7 +913,7 @@
 
     _checkin(key) {
       if (!this.state.checkins[key]) {
-        this.state.checkins[key] = { listening: false, speaking: false, reading: false, writing: false, minutes: 0, completed: false };
+        this.state.checkins[key] = { listening: false, speaking: false, reading: false, writing: false, minutes: 0, studySeconds: 0, completed: false };
       }
       return this.state.checkins[key];
     },
@@ -931,6 +932,14 @@
       this.commit();
     },
 
+    // 累加「自动学习计时」产生的秒数（与手动填写的 minutes 分开累计，避免互相覆盖）
+    addStudySeconds(sec, dateKey) {
+      const key = dateKey || todayKey();
+      const rec = this._checkin(key);
+      rec.studySeconds = (rec.studySeconds || 0) + (sec | 0);
+      this.commit();
+    },
+
     setCheckinCompleted(dateKey) {
       const key = dateKey || todayKey();
       this._checkin(key).completed = true;
@@ -940,7 +949,7 @@
     getCheckin(dateKey) {
       const key = dateKey || todayKey();
       return Object.assign(
-        { listening: false, speaking: false, reading: false, writing: false, minutes: 0, completed: false },
+        { listening: false, speaking: false, reading: false, writing: false, minutes: 0, studySeconds: 0, completed: false },
         this.state.checkins[key] || {}
       );
     },
@@ -1111,7 +1120,9 @@
       // 累计学习时长
       let totalMinutes = 0;
       for (const dk in this.state.checkins) {
-        totalMinutes += Number((this.state.checkins[dk] || {}).minutes) || 0;
+        const c = this.state.checkins[dk] || {};
+        totalMinutes += Number(c.minutes) || 0;
+        totalMinutes += Math.floor((Number(c.studySeconds) || 0) / 60);
       }
 
       // 完成打卡天数：今日学习三语词包全部完成并打卡

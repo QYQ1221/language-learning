@@ -1110,10 +1110,10 @@
     // 键盘快捷键
     document.addEventListener('keydown', onKeydown);
 
-    // 关闭前强制落盘
-    window.addEventListener('beforeunload', () => { Store.flush(); });
+    // 关闭/切后台前：先把已用学习时长增量提交到 checkins，再落盘
+    window.addEventListener('beforeunload', () => { if (ui.learn) flushDuration(true); Store.flush(); });
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') Store.flush();
+      if (document.visibilityState === 'hidden') { if (ui.learn) flushDuration(true); Store.flush(); }
     });
   }
 
@@ -1175,16 +1175,16 @@
     }
     if (t.closest('#btnSurprise')) { startLearn([LangThemes.suggestTheme(todayKey())]); return; }
     if (t.closest('#btnManualAdd')) { openManualAdd(); return; }
-    if (t.closest('#btnBackTheme')) { pauseTimer(); ui.learn = null; ui.learnDismissed = true; persistLearn(); render(); return; }  // 主动换主题：清空持久化会话并优先展示选择器
+    if (t.closest('#btnBackTheme')) { flushDuration(true); ui.learn = null; ui.learnDismissed = true; persistLearn(); render(); return; }  // 主动换主题：先提交累计时长，再清空持久化会话并优先展示选择器
     if (t.closest('#btnReshuffle')) {
-      pauseTimer();
+      flushDuration(true);   // 换一批前先提交当前已用时长
       ui.learn.salt = (ui.learn.salt || 0) + 1;
       persistLearn();      // 先锁定新 salt：避免 regenerate 内部 render 触发 renderCapture 旧会话恢复，把「换一批」撤销
       regenerateLearn();
       persistLearn();      // 保存新词包
       render(); return;
     }
-    if (t.closest('#btnFinishLater')) { pauseTimer(); persistLearn(); ui.learn = null; render(); toast('已保存进度，随时继续', 'ok'); return; }  // 保留 learnSession（含词包），下次进入 capture 自动恢复相同内容
+    if (t.closest('#btnFinishLater')) { flushDuration(true); persistLearn(); ui.learn = null; render(); toast('已保存进度，随时继续', 'ok'); return; }  // 提交累计时长后保留 learnSession（含词包），下次进入 capture 自动恢复相同内容
 
     if (t.closest('#btnViewStats')) { ui.learn = null; switchView('stats'); return; }
     const lb = t.closest('.learn-btn');
@@ -1330,6 +1330,7 @@
       pack: { en: [], ja: [], ko: [] }, total: 0,   // 初始化为空对象，避免 persistLearn 访问 null 崩溃
       order, idx: 0, focus: 'en',      // focus: 顶栏语言筛选（'all' 显示三语，否则单语）
       dur: { en: 0, ja: 0, ko: 0 },   // 每语累计学习秒数
+      committedSec: 0,                // 本会话已写入 checkins 的累计秒数（增量提交用，避免重复计入）
       activeLang: null, activeStart: 0,
       langDone: { en: false, ja: false, ko: false },
       langCheckedIn: { en: false, ja: false, ko: false }  // 学完并确认打卡后标记
@@ -1393,6 +1394,7 @@
       idx: s.idx || 0,
       focus: s.focus || 'en',
       dur: Object.assign({ en: 0, ja: 0, ko: 0 }, s.dur || {}),
+      committedSec: ((s.dur && (s.dur.en || 0)) || 0) + ((s.dur && (s.dur.ja || 0)) || 0) + ((s.dur && (s.dur.ko || 0)) || 0),
       activeLang: null, activeStart: 0,
       langDone: Object.assign({ en: false, ja: false, ko: false }, s.langDone),
       langCheckedIn: Object.assign({ en: false, ja: false, ko: false }, s.langCheckedIn),
@@ -1450,6 +1452,20 @@
     ensureDur(L);
     return ['en', 'ja', 'ko'].reduce((a, lg) => a + langSeconds(lg), 0);
   }
+  // 把已用学习时长增量写入 checkins（统计「累计学习」的唯一来源），并继续/停止计时
+  function flushDuration(stop) {
+    const L = ui.learn;
+    if (!L) return;
+    pauseTimer();   // 把当前激活语言的已用时间并入 L.dur
+    const total = (L.dur.en || 0) + (L.dur.ja || 0) + (L.dur.ko || 0);
+    const committed = L.committedSec || 0;
+    const delta = total - committed;
+    if (delta > 0) { Store.addStudySeconds(delta); L.committedSec = total; }
+    if (!stop) {
+      const fl = (L.focus === 'all') ? L.order[0] : (L.focus || L.order[0]);
+      if (!L.langCheckedIn[fl]) startTimer(fl);
+    }
+  }
   function fmtDuration(sec) {
     sec = Math.max(0, sec | 0);
     const m = Math.floor(sec / 60), s = sec % 60;
@@ -1463,9 +1479,8 @@
     Store.state.settings.activeLang = lang;
     Store.commit();
     if (ui.learn) {                         // 学习中：'all' 显示三语，否则只显示该语言
-      pauseTimer();
       ui.learn.focus = lang;
-      if (lang !== 'all') startTimer(lang);
+      flushDuration(false);   // 提交上一语言已用时长，并继续计时当前语言
     }
     if (ui.view === 'review') buildReviewQueue();
     render();
@@ -1691,15 +1706,14 @@
     L.added.add(bankId);
     L.judged[bankId] = judge;
     persistLearn();   // 实时保存进度（词包 + 已学集合），保证「稍后再学」重开内容完全一致
+    flushDuration(false);   // 每次点击都把已用时长增量写入 checkins（累计学习统计的唯一来源）
 
     // 当前语言 10 词学完 → 自动弹出完成打卡
     const cur = item.lang;
     const items = (L.pack && L.pack[cur]) || [];
     if (items.length > 0 && items.every(x => L.added.has(x._bankId))) {
-      pauseTimer();
+      pauseTimer();   // 该语言学完，停止其计时（flushDuration 已在上一步提交累计）
       L.langDone[cur] = true;
-      const mins = Math.round(langSeconds(cur) / 60);
-      if (mins > 0) Store.setCheckinMinutes(Store.getCheckin().minutes + mins);
       showLangCheckin(cur);
       return;
     }
