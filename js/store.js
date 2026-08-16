@@ -353,7 +353,7 @@
     return {
       version: 1,
       entries: [],          // 学习条目
-      checkins: {},         // { '2026-08-09': { listening:true, speaking:false, reading:true, writing:false, minutes:30 } }
+      checkins: {},         // { '2026-08-09': { listening:true, speaking:false, reading:true, writing:false, minutes:30, completed:false } }
       settings: {
         theme: 'light',
         activeLang: 'all',
@@ -451,6 +451,7 @@
             if (typeof rec[k] !== 'boolean') rec[k] = false;
           });
           if (typeof rec.minutes !== 'number') rec.minutes = 0;
+          if (typeof rec.completed !== 'boolean') rec.completed = false;
         }
       }
       this._fixLearnSession();
@@ -911,7 +912,7 @@
 
     _checkin(key) {
       if (!this.state.checkins[key]) {
-        this.state.checkins[key] = { listening: false, speaking: false, reading: false, writing: false, minutes: 0 };
+        this.state.checkins[key] = { listening: false, speaking: false, reading: false, writing: false, minutes: 0, completed: false };
       }
       return this.state.checkins[key];
     },
@@ -930,10 +931,16 @@
       this.commit();
     },
 
+    setCheckinCompleted(dateKey) {
+      const key = dateKey || todayKey();
+      this._checkin(key).completed = true;
+      this.commit();
+    },
+
     getCheckin(dateKey) {
       const key = dateKey || todayKey();
       return Object.assign(
-        { listening: false, speaking: false, reading: false, writing: false, minutes: 0 },
+        { listening: false, speaking: false, reading: false, writing: false, minutes: 0, completed: false },
         this.state.checkins[key] || {}
       );
     },
@@ -942,6 +949,7 @@
     hasActivity(dateKey) {
       const c = this.state.checkins[dateKey];
       if (c) {
+        if (c.completed) return true;
         if (SKILLS.some(s => c[s.key])) return true;
         if ((c.minutes || 0) > 0) return true;
       }
@@ -1059,24 +1067,28 @@
     // ===== 统计 =====
 
     stats(lang) {
-      const learnedEntries = this.state.entries.filter(e => e.learned);
-      const all = lang && lang !== 'all'
-        ? learnedEntries.filter(e => e.lang === lang)
-        : learnedEntries;
-
       const today = todayKey();
+
+      // 词库全部条目（含已学与未学、AI 补充词）
+      const allEntries = lang && lang !== 'all'
+        ? this.state.entries.filter(e => e.lang === lang)
+        : this.state.entries;
+
+      // 已学条目（点过认识/不认识）
+      const learnedEntries = allEntries.filter(e => e.learned);
+
       const byLang = { en: 0, ja: 0, ko: 0 };
       const byLevel = [0, 0, 0, 0];
-      all.forEach(e => {
+      learnedEntries.forEach(e => {
         byLang[e.lang] = (byLang[e.lang] || 0) + 1;
         byLevel[e.level] = (byLevel[e.level] || 0) + 1;
       });
 
-      // 近 7 日新增（按语言堆叠）
+      // 近 7 日已学趋势（按语言堆叠）
       const trend = [];
       for (let i = 6; i >= 0; i--) {
         const key = addDays(today, -i);
-        const dayItems = all.filter(e => e.dateKey === key);
+        const dayItems = learnedEntries.filter(e => e.dateKey === key);
         trend.push({
           date: key,
           label: i === 0 ? '今天' : weekdayLabel(key),
@@ -1087,10 +1099,10 @@
         });
       }
 
-      // 连续打卡天数
+      // 连续学习天数（今天没学则从前一天开始计）
       let streak = 0;
       let cursor = today;
-      if (!this.hasActivity(cursor)) cursor = addDays(today, -1); // 今天还没学不断连
+      if (!this.hasActivity(cursor)) cursor = addDays(today, -1);
       while (this.hasActivity(cursor)) {
         streak += 1;
         cursor = addDays(cursor, -1);
@@ -1102,18 +1114,26 @@
         totalMinutes += Number((this.state.checkins[dk] || {}).minutes) || 0;
       }
 
+      // 完成打卡天数：今日学习三语词包全部完成并打卡
+      const completedDays = Object.keys(this.state.checkins).filter(k => this.state.checkins[k].completed).length;
+
       return {
-        total: all.length,
-        todayCount: all.filter(e => e.dateKey === today).length,
-        weekCount: all.filter(e => daysBetween(e.dateKey, today) < 7).length,
-        due: this.dueEntries(lang).length,
+        // 新顶部指标
+        streak,
+        completedDays,
+        totalEntries: allEntries.length,
+        todayAdded: allEntries.filter(e => e.dateKey === today).length,
+        learned: learnedEntries.length,
+        todayLearned: learnedEntries.filter(e => e.dateKey === today).length,
         mastered: byLevel[3],
-        masterRate: all.length ? Math.round((byLevel[3] / all.length) * 100) : 0,
+        masterRate: learnedEntries.length ? Math.round((byLevel[3] / learnedEntries.length) * 100) : 0,
+        due: this.dueEntries(lang).length,
+        totalMinutes,
+        // 辅助/图表数据
         byLang,
         byLevel,
         trend,
-        streak,
-        totalMinutes,
+        weekCount: learnedEntries.filter(e => daysBetween(e.dateKey, today) < 7).length,
         activeDays: Object.keys(this.state.checkins).filter(k => this.hasActivity(k)).length
       };
     },

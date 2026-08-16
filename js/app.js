@@ -800,19 +800,39 @@
           <div class="stat-foot">累计活跃 ${s.activeDays} 天</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">📚 词条总量</div>
-          <div class="stat-value">${s.total}</div>
-          <div class="stat-foot">本周新增 ${s.weekCount} 条</div>
+          <div class="stat-label">✅ 完成打卡</div>
+          <div class="stat-value">${s.completedDays}<span class="stat-unit">天</span></div>
+          <div class="stat-foot">三语词包都完成</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">✅ 已掌握</div>
-          <div class="stat-value">${s.mastered}<span class="stat-unit">条</span></div>
+          <div class="stat-label">📚 新增词汇</div>
+          <div class="stat-value">${s.totalEntries}<span class="stat-unit">条</span></div>
+          <div class="stat-foot">累计加入词库</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🆕 今日新增</div>
+          <div class="stat-value">${s.todayAdded}<span class="stat-unit">条</span></div>
+          <div class="stat-foot">今天加入词库</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">👀 已学习</div>
+          <div class="stat-value">${s.learned}<span class="stat-unit">词</span></div>
+          <div class="stat-foot">点过认识 / 不认识</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🎯 已掌握</div>
+          <div class="stat-value">${s.mastered}<span class="stat-unit">词</span></div>
           <div class="stat-foot">掌握率 ${s.masterRate}%</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">⏰ 待复习</div>
           <div class="stat-value" style="${s.due > 0 ? 'color:var(--danger)' : ''}">${s.due}</div>
-          <div class="stat-foot">累计学习 ${Math.round(s.totalMinutes / 60 * 10) / 10} 小时</div>
+          <div class="stat-foot">按艾宾浩斯安排</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">⏱️ 累计学习</div>
+          <div class="stat-value">${Math.round(s.totalMinutes / 60 * 10) / 10}<span class="stat-unit">小时</span></div>
+          <div class="stat-foot">${s.totalMinutes} 分钟</div>
         </div>
       </div>
 
@@ -847,8 +867,8 @@
           <div class="card-head"><h2 class="card-title">语言分布</h2></div>
           <div class="card-body">
             ${['en', 'ja', 'ko'].map(lg => {
-              const c = s.byLang[lg] || 0;
-              const p = s.total ? Math.round((c / s.total) * 100) : 0;
+            const c = s.byLang[lg] || 0;
+            const p = s.learned ? Math.round((c / s.learned) * 100) : 0;
               return `
                 <div class="progress-row">
                   <div class="progress-head">
@@ -862,8 +882,8 @@
             <div style="border-top:1px solid var(--border);margin:16px 0 14px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:10px">掌握程度分布</div>
             ${LEVELS.map(l => {
-              const c = s.byLevel[l.v] || 0;
-              const p = s.total ? Math.round((c / s.total) * 100) : 0;
+            const c = s.byLevel[l.v] || 0;
+            const p = s.learned ? Math.round((c / s.learned) * 100) : 0;
               return `
                 <div class="progress-row">
                   <div class="progress-head">
@@ -1522,7 +1542,16 @@
         const statsBtn = $('#lcStats');
         if (statsBtn) statsBtn.onclick = () => { c(); switchView('stats'); };
         const doneBtn = $('#lcDone');
-        if (doneBtn) doneBtn.onclick = () => { c(); L.langCheckedIn[lang] = true; persistLearn(); render(); };   // 标记打卡完成，回到学习页显示「完成打卡」横幅
+        if (doneBtn) doneBtn.onclick = () => {
+        c();
+        L.langCheckedIn[lang] = true;
+        persistLearn();
+        render();
+        // 三语都完成打卡 → 把今天标记为完成打卡，用于统计
+        if (L.order.every(lg => L.langCheckedIn[lg])) {
+          Store.setCheckinCompleted(todayKey());
+        }
+      };
       }
     });
   }
