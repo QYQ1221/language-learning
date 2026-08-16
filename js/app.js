@@ -1427,7 +1427,7 @@
   }
   function startTimer(lang) {
     const L = ui.learn;
-    if (!L) return;
+    if (!L || L.langCheckedIn[lang]) return;   // 已打卡完成的语言不再计时，保持时长定格
     ensureDur(L);
     L.activeLang = lang; L.activeStart = Date.now();
   }
@@ -1545,22 +1545,29 @@
     const bankCount = Math.max(1, Math.floor(perLang / 2));   // 词库（主题）词：约一半
     const aiCount = perLang - bankCount;                       // AI 拓展词：约一半
     const diff = Store.state.settings.difficulty || { en: 3, ja: 1, ko: 1 };
-    // AI 开启时先取一半词库词，剩余由 AI 补齐到每日每语词量；AI 关闭时直接取满
-    L.pack = LangThemes.generatePack({
-      themeKeys: L.themes, perLang: aiOn ? bankCount : perLang, difficulty: diff, learned,
-      dateKey: todayKey(), salt: L.salt, langs: ['en', 'ja', 'ko']
-    }) || { en: [], ja: [], ko: [] };
+    // 已打卡完成的语言保留原 pack/时长/状态，只重新生成未打卡的语言
+    const langsToGen = L.order.filter(lg => !L.langCheckedIn[lg]);
+    if (langsToGen.length > 0) {
+      const newPack = LangThemes.generatePack({
+        themeKeys: L.themes, perLang: aiOn ? bankCount : perLang, difficulty: diff, learned,
+        dateKey: todayKey(), salt: L.salt, langs: langsToGen
+      }) || { en: [], ja: [], ko: [] };
+      langsToGen.forEach(lg => { L.pack[lg] = newPack[lg] || []; });
+    }
     L.total = ((L.pack.en || []).length) + ((L.pack.ja || []).length) + ((L.pack.ko || []).length);
     // 标记已学完的语言（仅用于内部判断，不再自动跳到下一语言）
     L.order.forEach(lg => {
       const items = (L.pack && L.pack[lg]) || [];
       L.langDone[lg] = items.length > 0 && items.every(x => L.added.has(x._bankId));
     });
-    // 保持当前选中的语言标签不变（标签页切换，不顺序推进）
+    // 当前 focus 已打卡则自动切到第一个未打卡语言；若全部打卡则不启动计时
     const focusLang = (L.focus === 'all') ? L.order[0] : (L.focus || L.order[0]);
-    startTimer(focusLang);
+    const targetLang = L.langCheckedIn[focusLang]
+      ? (L.order.find(lg => !L.langCheckedIn[lg]) || null)
+      : focusLang;
+    if (targetLang) startTimer(targetLang);
     render();
-    if (aiOn) aiSupplement(L, { aiCount, perLang, diff });   // 生成时按主题自动补充 AI 词（补齐到每日每语词量）
+    if (aiOn && langsToGen.length > 0) aiSupplement(L, { aiCount, perLang, diff });   // 仅给未打卡语言补 AI 词
   }
 
   // 生成时按主题用 AI 自动补充词库（异步追加，不阻塞首屏）
@@ -1581,6 +1588,7 @@
     function topUpBank() {
       const learned = new Set(Store.state.entries.filter(e => e.learned).map(e => e._bankId).filter(Boolean));
       langs.forEach(lg => {
+        if (L.langCheckedIn[lg]) return;   // 已打卡语言不动
         if (!L.pack) L.pack = { en: [], ja: [], ko: [] };
         let guard = 0;
         while (((L.pack && L.pack[lg]) || []).length < perLang && guard < 8) {
@@ -1607,6 +1615,7 @@
         const seen = new Set();
         let added = 0, saved = 0;
         items.forEach(it => {
+          if (L.langCheckedIn[it.lang]) return;   // 已打卡语言不再追加 AI 词
           const arr = (L.pack && L.pack[it.lang]) || null;
           if (!arr) return;
           const key = it.lang + '|' + it.text.toLowerCase();
