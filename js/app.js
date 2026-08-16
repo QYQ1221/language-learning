@@ -368,12 +368,17 @@
     const added = ui.learn.added.has(it._bankId);
     const j = ui.learn.judged[it._bankId];
     const jLabel = j === 'know' ? '（认识）' : j === 'unknown' ? '（不认识）' : '';
+    const isAI = !!(it._bankId && String(it._bankId).indexOf('ai:') === 0);
+    const isMe = !!it.isManual;
+    const tag = isAI ? '<span class="word-tag tag-ai">✨ AI 生成</span>'
+      : isMe ? '<span class="word-tag tag-me">✍ 自己加词</span>' : '';
     const spk = (txt, lang) => txt
       ? `<button class="spk" data-spk-text="${esc(txt)}" data-spk-lang="${lang}" title="朗读">${icon('i-volume')}</button>`
       : '';
     return `
       <div class="learn-card ${added ? 'done' : ''}" data-bank="${esc(it._bankId)}">
         <div class="learn-front">
+          ${tag ? `<div class="learn-tagrow">${tag}</div>` : ''}
           <div class="learn-text">${esc(it.text)} ${spk(it.text, it.lang)}</div>
           <div class="learn-read">
             ${it.reading ? `<span>${esc(it.reading)}</span>` : ''}
@@ -1880,6 +1885,7 @@
             const meaning = (f.meaning || '').trim();
             if (!text) return;
             if (!meaning) { toast(LANGS[l].name + ' 的释义未填，跳过该语种', 'warn'); return; }
+            const bid = 'me:' + l + ':' + text;   // 自己加词的 bankId 前缀，用于单词卡「自建」标签与去重
             const patch = {
               lang: l, type: 'word', text,
               reading: (f.reading || '').trim(),
@@ -1887,15 +1893,28 @@
               exampleTrans: (f.exampleTrans || '').trim(),
               pos: (f.pos || '').trim(),
               source: '自己添加', tags: parseTags(f.tags), level: 0,
-              cn: M.cn.trim(), groupId: gid
+              cn: M.cn.trim(), groupId: gid, bankId: bid
             };
             if (FIELD_CONFIG[l].extra) patch[FIELD_CONFIG[l].extra.key] = (f.extra || '').trim();
             Store.addEntry(patch);
+            // 同步加入当前学习词包（若在学习页且未打卡），单词卡显示「自建」标签
+            if (ui.learn && !ui.learn.langCheckedIn[l]) {
+              if (!ui.learn.pack[l]) ui.learn.pack[l] = [];
+              if (!ui.learn.pack[l].some(x => x._bankId === bid)) {
+                ui.learn.pack[l].push({
+                  _bankId: bid, lang: l, type: 'word', text,
+                  reading: patch.reading, meaning: patch.meaning,
+                  example: patch.example, exampleTrans: patch.exampleTrans,
+                  pos: patch.pos, source: '自己添加', isManual: true
+                });
+                ui.learn.total = (ui.learn.total || 0) + 1;
+              }
+            }
             added++;
           });
           if (!added) { toast('请至少填写一个语种的原文与释义', 'warn'); return; }
           c();
-          if (ui.view === 'capture') render();
+          render();
           toast('已加入词库（' + added + ' 个语种）', 'ok');
         };
       }
