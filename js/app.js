@@ -805,9 +805,9 @@
           <div class="stat-foot">今日新增 ${s.todayAdded} 条</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">🎯 已掌握</div>
-          <div class="stat-value">${s.mastered}<span class="stat-unit">词</span></div>
-          <div class="stat-foot">已学习 ${s.learned} 词 · 掌握率 ${s.masterRate}%</div>
+          <div class="stat-label">🎯 已学习</div>
+          <div class="stat-value">${s.learned}<span class="stat-unit">词</span></div>
+          <div class="stat-foot">已掌握 ${s.mastered} 词 · 掌握率 ${s.masterRate}%</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">⏰ 待复习</div>
