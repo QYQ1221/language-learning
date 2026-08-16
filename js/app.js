@@ -271,7 +271,7 @@
 
     // 三语全部完成打卡 → 完成总览（仅「全部」视图下三种都学完才显示）
     const allDone = L.order.every(lg =>
-      (L.pack[lg] || []).length > 0 && L.langCheckedIn[lg]);
+      ((L.pack && L.pack[lg]) || []).length > 0 && L.langCheckedIn[lg]);
     if (allDone) return allDoneView();
 
     const themeTitle = L.themes.map(k => {
@@ -307,7 +307,7 @@
     const sec = totalSeconds();
     const counts = {};
     ['en', 'ja', 'ko'].forEach(lg => {
-      counts[lg] = (L.pack[lg] || []).filter(x => L.added.has(x._bankId)).length;
+      counts[lg] = ((L.pack && L.pack[lg]) || []).filter(x => L.added.has(x._bankId)).length;
     });
     return `
       <div class="card" style="margin-bottom:16px">
@@ -330,7 +330,7 @@
   }
 
   function renderLangSection(lg) {
-    const items = (ui.learn.pack[lg] || []);
+    const items = ((ui.learn.pack && ui.learn.pack[lg]) || []);
     if (!items.length) return '';
     const L = LANGS[lg];
     // 学完并确认打卡后：该语种显示为「完成打卡」横幅，不再列单词
@@ -361,7 +361,7 @@
   }
 
   function countAddedInLang(lg) {
-    return (ui.learn.pack[lg] || []).filter(x => ui.learn.added.has(x._bankId)).length;
+    return ((ui.learn.pack && ui.learn.pack[lg]) || []).filter(x => ui.learn.added.has(x._bankId)).length;
   }
 
   function renderLearnCard(it) {
@@ -1320,8 +1320,9 @@
     const order = ['en', 'ja', 'ko'];
     ui.learnDismissed = false;   // 重新生成后清除「换主题」标记
     ui.learn = {
+      date: todayKey(),          // 与持久化会话保持一致，避免 learnIdentity 比较时因缺 date 触发无谓 restore
       themes: themeKeys.slice(), salt: 0, added: new Set(), judged: {},
-      pack: null, total: 0,
+      pack: { en: [], ja: [], ko: [] }, total: 0,   // 初始化为空对象，避免 persistLearn 访问 null 崩溃
       order, idx: 0, focus: 'en',      // focus: 顶栏语言筛选（'all' 显示三语，否则单语）
       dur: { en: 0, ja: 0, ko: 0 },   // 每语累计学习秒数
       activeLang: null, activeStart: 0,
@@ -1346,8 +1347,9 @@
     }
     ensureDur(L);
     const pack = {};
+    const srcPack = L.pack && typeof L.pack === 'object' ? L.pack : {};
     ['en', 'ja', 'ko'].forEach(lg => {
-      pack[lg] = (L.pack[lg] || []).map(x => Object.assign({}, x));   // 深拷贝，避免与内存引用纠缠
+      pack[lg] = (srcPack[lg] || []).map(x => Object.assign({}, x));   // 深拷贝，避免与内存引用纠缠
     });
     const total = (pack.en.length) + (pack.ja.length) + (pack.ko.length);
     Store.state.learnSession = {
@@ -1399,7 +1401,7 @@
         ja: (s.pack.ja || []).map(x => Object.assign({}, x)),
         ko: (s.pack.ko || []).map(x => Object.assign({}, x))
       };
-      L.total = L.pack.en.length + L.pack.ja.length + L.pack.ko.length;
+      L.total = ((L.pack.en || []).length) + ((L.pack.ja || []).length) + ((L.pack.ko || []).length);
       ensureDur(L);
       const focusLang = (L.focus === 'all') ? L.order[0] : (L.focus || L.order[0]);
       startTimer(focusLang);
@@ -1468,7 +1470,7 @@
   function showLangCheckin(lang) {
     const L = ui.learn;
     const info = LANGS[lang];
-    const studied = (L.pack[lang] || []).filter(x => L.added.has(x._bankId));
+    const studied = ((L.pack && L.pack[lang]) || []).filter(x => L.added.has(x._bankId));
     const sec = langSeconds(lang);
     const rec = Store.getCheckin();
 
@@ -1538,11 +1540,11 @@
     L.pack = LangThemes.generatePack({
       themeKeys: L.themes, perLang: aiOn ? bankCount : perLang, difficulty: diff, learned,
       dateKey: todayKey(), salt: L.salt, langs: ['en', 'ja', 'ko']
-    });
-    L.total = (L.pack.en.length) + (L.pack.ja.length) + (L.pack.ko.length);
+    }) || { en: [], ja: [], ko: [] };
+    L.total = ((L.pack.en || []).length) + ((L.pack.ja || []).length) + ((L.pack.ko || []).length);
     // 标记已学完的语言（仅用于内部判断，不再自动跳到下一语言）
     L.order.forEach(lg => {
-      const items = L.pack[lg] || [];
+      const items = (L.pack && L.pack[lg]) || [];
       L.langDone[lg] = items.length > 0 && items.every(x => L.added.has(x._bankId));
     });
     // 保持当前选中的语言标签不变（标签页切换，不顺序推进）
@@ -1564,24 +1566,25 @@
     const themeNames = L.themes.map(themeName);
     const themeLabel = themeNames.join(' · ');
     const existing = [];
-    langs.forEach(lg => (L.pack[lg] || []).forEach(x => { if (x.text) existing.push(x.text); }));
+    langs.forEach(lg => ((L.pack && L.pack[lg]) || []).forEach(x => { if (x.text) existing.push(x.text); }));
 
     // 用词库（主题）词把某语言补满到 perLang（AI 不足时兜底，保证总数达标）
     function topUpBank() {
       const learned = new Set(Store.state.entries.map(e => e._bankId).filter(Boolean));
       langs.forEach(lg => {
+        if (!L.pack) L.pack = { en: [], ja: [], ko: [] };
         let guard = 0;
-        while ((L.pack[lg] || []).length < perLang && guard < 8) {
-          const need = perLang - (L.pack[lg] || []).length;
+        while (((L.pack && L.pack[lg]) || []).length < perLang && guard < 8) {
+          const need = perLang - ((L.pack && L.pack[lg]) || []).length;
           const extra = LangThemes.generatePack({
             themeKeys: L.themes, perLang: need, difficulty: diff, learned,
             dateKey: todayKey(), salt: (L.salt || 0) + 1000 + guard, langs: [lg]
           })[lg] || [];
-          const before = (L.pack[lg] || []).length;
+          const before = ((L.pack && L.pack[lg]) || []).length;
           extra.forEach(x => {
             if (!(L.pack[lg].some(p => p._bankId === x._bankId))) L.pack[lg].push(x);
           });
-          if ((L.pack[lg] || []).length === before) break;   // 已无可补充，避免死循环
+          if (((L.pack && L.pack[lg]) || []).length === before) break;   // 已无可补充，避免死循环
           guard++;
         }
       });
@@ -1595,7 +1598,7 @@
         const seen = new Set();
         let added = 0, saved = 0;
         items.forEach(it => {
-          const arr = L.pack[it.lang];
+          const arr = (L.pack && L.pack[it.lang]) || null;
           if (!arr) return;
           const key = it.lang + '|' + it.text.toLowerCase();
           if (seen.has(key)) return;
@@ -1617,7 +1620,7 @@
           }
         });
         topUpBank();   // AI 不足则用词库词补满到 perLang
-        L.total = langs.reduce((a, lg) => a + (L.pack[lg] || []).length, 0);
+        L.total = langs.reduce((a, lg) => a + ((L.pack && L.pack[lg]) || []).length, 0);
         L.aiLoading = false;
         if (added) toast('AI 已补充 ' + added + ' 个词（已加入词库 ' + saved + '）', 'ok');
         render();
@@ -1625,7 +1628,7 @@
       .catch(err => {
         if (!ui.learn || ui.learn !== L) return;
         topUpBank();   // AI 失败也保证当日词量达标
-        L.total = langs.reduce((a, lg) => a + (L.pack[lg] || []).length, 0);
+        L.total = langs.reduce((a, lg) => a + ((L.pack && L.pack[lg]) || []).length, 0);
         L.aiLoading = false;
         render();
         toast('AI 补充失败：' + (err && err.message ? err.message : err), 'warn');
@@ -1637,7 +1640,7 @@
     if (!L || L.added.has(bankId)) return;
     let item = null;
     for (const lg of ['en', 'ja', 'ko']) {
-      const f = (L.pack[lg] || []).find(x => x._bankId === bankId);
+      const f = ((L.pack && L.pack[lg]) || []).find(x => x._bankId === bankId);
       if (f) { item = f; break; }
     }
     if (!item) return;
@@ -1664,7 +1667,7 @@
 
     // 当前语言 10 词学完 → 自动弹出完成打卡
     const cur = item.lang;
-    const items = L.pack[cur] || [];
+    const items = (L.pack && L.pack[cur]) || [];
     if (items.length > 0 && items.every(x => L.added.has(x._bankId))) {
       pauseTimer();
       L.langDone[cur] = true;
