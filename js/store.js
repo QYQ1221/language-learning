@@ -425,10 +425,12 @@
       this.state.entries.forEach(e => {
         if (!LANGS[e.lang]) e.lang = 'en';   // 修复非法/缺失的语言字段，避免渲染崩溃
         if (!e.srs) e.srs = { stage: 0, nextReview: todayKey(), reviews: 0, lapses: 0 };
-      if (typeof e.level !== 'number') e.level = 0;
-      if (!Array.isArray(e.tags)) e.tags = [];
-      if (e._bankId === undefined) e._bankId = '';
-      if (!e.dateKey) e.dateKey = todayKey(e.createdAt || Date.now());
+        if (typeof e.level !== 'number') e.level = 0;
+        if (!Array.isArray(e.tags)) e.tags = [];
+        if (e._bankId === undefined) e._bankId = '';
+        if (!e.dateKey) e.dateKey = todayKey(e.createdAt || Date.now());
+        // 兼容旧数据：新增 learned 标记；只有被复习过（reviews>0）的旧条目才视为已学，否则不算
+        if (typeof e.learned !== 'boolean') e.learned = !!(e.srs && e.srs.reviews > 0);
       });
 
       // 兼容旧版：checkins 由「按语言」改为「按技能(听说读写)全局」
@@ -839,6 +841,7 @@
         cn: (data.cn || '').trim(),
         groupId: (data.groupId || '').trim(),
         level: typeof data.level === 'number' ? data.level : 0,
+        learned: data.learned === true,   // 是否已被用户主动学习过；只有点过「认识/不认识」才置 true
         createdAt: now,
         updatedAt: now,
         dateKey: todayKey(now),
@@ -872,6 +875,7 @@
           cn: (d.cn || '').trim(),
           groupId: (d.groupId || '').trim(),
           level: 0,
+          learned: d.learned === true,
           createdAt: now,
           updatedAt: now,
           dateKey: todayKey(now),
@@ -934,19 +938,19 @@
       );
     },
 
-    /** 某天是否有任何学习活动（打卡或新增条目） */
+    /** 某天是否有任何学习活动（打卡或新增已学条目） */
     hasActivity(dateKey) {
       const c = this.state.checkins[dateKey];
       if (c) {
         if (SKILLS.some(s => c[s.key])) return true;
         if ((c.minutes || 0) > 0) return true;
       }
-      return this.state.entries.some(e => e.dateKey === dateKey);
+      return this.state.entries.some(e => e.learned && e.dateKey === dateKey);
     },
 
     /** 某天的活动强度 0-4，用于热力图 */
     activityLevel(dateKey) {
-      const count = this.state.entries.filter(e => e.dateKey === dateKey).length;
+      const count = this.state.entries.filter(e => e.learned && e.dateKey === dateKey).length;
       const c = this.state.checkins[dateKey] || {};
       const skills = SKILLS.filter(s => c[s.key]).length;
       const minutes = Number(c.minutes) || 0;
@@ -963,6 +967,7 @@
     dueEntries(lang) {
       const today = todayKey();
       return this.state.entries.filter(e => {
+        if (!e.learned) return false;   // 只有用户主动学过的词才进入复习队列
         if (lang && lang !== 'all' && e.lang !== lang) return false;
         if (e.level >= 3 && e.srs.stage >= SRS_INTERVALS.length - 1) return false;
         return daysBetween(e.srs.nextReview, today) >= 0;
@@ -1054,9 +1059,10 @@
     // ===== 统计 =====
 
     stats(lang) {
+      const learnedEntries = this.state.entries.filter(e => e.learned);
       const all = lang && lang !== 'all'
-        ? this.state.entries.filter(e => e.lang === lang)
-        : this.state.entries;
+        ? learnedEntries.filter(e => e.lang === lang)
+        : learnedEntries;
 
       const today = todayKey();
       const byLang = { en: 0, ja: 0, ko: 0 };

@@ -543,7 +543,7 @@
     const T = TYPES[e.type] || TYPES.word;
     const lv = LEVELS[e.level] || LEVELS[0];
     const dueIn = daysBetween(todayKey(), e.srs.nextReview);
-    const dueText = dueIn <= 0 ? '待复习' : `${dueIn}天后复习`;
+    const dueText = !e.learned ? '未学习' : (dueIn <= 0 ? '待复习' : `${dueIn}天后复习`);
     const spk = (txt, lang) => txt
       ? `<button class="spk" data-spk-text="${esc(txt)}" data-spk-lang="${lang}" title="朗读">${icon('i-volume')}</button>`
       : '';
@@ -703,7 +703,7 @@
     if (!q.length) {
       const total = Store.dueEntries(ui.lang).length;
       const next = Store.state.entries
-        .filter(e => ui.lang === 'all' || e.lang === ui.lang)
+        .filter(e => e.learned && (ui.lang === 'all' || e.lang === ui.lang))
         .map(e => e.srs.nextReview).sort()[0];
       return `
         <div class="card"><div class="empty">
@@ -1530,7 +1530,7 @@
   function regenerateLearn() {
     const L = ui.learn;
     if (!L) return;
-    const learned = new Set(Store.state.entries.map(e => e._bankId).filter(Boolean));
+    const learned = new Set(Store.state.entries.filter(e => e.learned).map(e => e._bankId).filter(Boolean));
     const perLang = Store.state.settings.dailyGoal || 10;
     const aiOn = !!(window.LangAI && LangAI.enabled());
     const bankCount = Math.max(1, Math.floor(perLang / 2));   // 词库（主题）词：约一半
@@ -1570,7 +1570,7 @@
 
     // 用词库（主题）词把某语言补满到 perLang（AI 不足时兜底，保证总数达标）
     function topUpBank() {
-      const learned = new Set(Store.state.entries.map(e => e._bankId).filter(Boolean));
+      const learned = new Set(Store.state.entries.filter(e => e.learned).map(e => e._bankId).filter(Boolean));
       langs.forEach(lg => {
         if (!L.pack) L.pack = { en: [], ja: [], ko: [] };
         let guard = 0;
@@ -1614,7 +1614,8 @@
               lang: it.lang, type: it.type || 'word', text: it.text,
               reading: it.reading, pitch: it.pitch, hanja: it.hanja, pos: it.pos,
               meaning: it.meaning, example: it.example, exampleTrans: it.exampleTrans,
-              source: 'AI 补充 · ' + themeLabel, tags: it.tags || [], level: 0, bankId: bid
+              source: 'AI 补充 · ' + themeLabel, tags: it.tags || [], level: 0, bankId: bid,
+              learned: false   // AI 补充词只进词库，不算学过；只有用户点击「认识/不认识」后才算
             });
             saved++;
           }
@@ -1648,10 +1649,10 @@
     if (!item) return;
     const known = judge === 'know';
     const themeLabel = L.themes.map(themeName).join(' · ');
-    // 按 bankId 去重：AI 拓展词已在生成时写入词库，这里更新其掌握程度而非重复添加
+    // 按 bankId 去重：AI 拓展词已在生成时写入词库，这里更新其掌握程度并标记为已学
     const existing = Store.state.entries.find(e => e._bankId === bankId);
     if (existing) {
-      Store.updateEntry(existing.id, { level: known ? 1 : 0 });
+      Store.updateEntry(existing.id, { level: known ? 1 : 0, learned: true });
     } else {
       Store.addEntry({
         lang: item.lang, type: item.type || 'word',
@@ -1660,7 +1661,8 @@
         source: '每日词包 · ' + themeLabel,
         tags: [themeLabel].concat(item.tags || []),
         level: known ? 1 : 0,
-        bankId: item._bankId
+        bankId: item._bankId,
+        learned: true
       });
     }
     L.added.add(bankId);
