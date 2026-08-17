@@ -505,13 +505,14 @@ button, input, textarea, select {
 }
 .learn-read .word-tag { margin-left: 8px; }
 .tag-ai {
-  background: var(--surface);
-  color: var(--text-2);
-  border: 1px solid var(--border-strong);
+  background: var(--text-1);
+  color: #fff;
+  border: 1px solid var(--text-1);
+  font-weight: 700;
 }
 .tag-me {
   background: var(--surface-hover);
-  color: var(--text-3);
+  color: var(--text-2);
   border: 1px solid var(--border-strong);
 }
 
