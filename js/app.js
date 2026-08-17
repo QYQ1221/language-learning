@@ -831,7 +831,7 @@
         <div class="stat-card">
           <div class="stat-label">⏰ 待复习</div>
           <div class="stat-value" style="${s.due > 0 ? 'color:var(--danger)' : ''}">${s.due}</div>
-          <div class="stat-foot">累计学习 ${s.totalMinutes} 分钟</div>
+          <div class="stat-foot">累计学习 ${fmtDuration(s.totalStudySeconds)}</div>
         </div>
       </div>
 
@@ -1226,14 +1226,6 @@
     if (t.closest('#btnParse')) { renderBulkPreview(); return; }
     if (t.closest('#btnBulkAdd')) { bulkAdd(); return; }
 
-    // ---- 今日打卡（听说读写） ----
-    const sc = t.closest('.skill-card');
-    if (sc) {
-      const on = Store.toggleCheckin(sc.dataset.skill);
-      sc.classList.toggle('done', on);
-      return;
-    }
-
     // ---- 历史折叠 ----
     const dayHead = t.closest('.day-head');
     if (dayHead) {
@@ -1279,17 +1271,11 @@
     if (t.closest('#btnRebuild')) { buildReviewQueue(); render(); return; }
   }
 
-  // 弹窗内的事件（朗读 / 打卡技能）
+  // 弹窗内的事件（朗读）
   function onModalClick(ev) {
     const t = ev.target;
     const spkBtn = t.closest('[data-spk-text]');
     if (spkBtn) { speakText(spkBtn.dataset.spkText, spkBtn.dataset.spkLang); return; }
-    const sc = t.closest('.skill-card');
-    if (sc) {
-      const on = Store.toggleCheckin(sc.dataset.skill);
-      sc.classList.toggle('done', on);
-      return;
-    }
   }
 
   function onContentInput(ev) {
@@ -1468,17 +1454,10 @@
     ensureDur(L);
     return ['en', 'ja', 'ko'].reduce((a, lg) => a + langSeconds(lg), 0);
   }
-  // 今日累计学习秒数（与统计页口径一致）：已持久化的今日 studySeconds + 手动 minutes + 当前未提交的活跃计时段。
-  // 注意：不重复加 L.dur，因为 L.dur 已被 flushDuration 计入今日 checkin.studySeconds，重复加会翻倍。
-  function todayStudySeconds() {
-    const rec = Store.getCheckin();   // 默认今日
-    let s = (Number(rec.studySeconds) || 0) + (Number(rec.minutes) || 0) * 60;
-    const L = ui.learn;
-    if (L && L.activeLang && L.activeStart) s += Math.floor((Date.now() - L.activeStart) / 1000);
-    return s;
-  }
   // 把已用学习时长增量写入 checkins（统计「累计学习」的唯一来源），并继续/停止计时
-  function flushDuration(stop) {
+  // lang：本次学习交互对应的语言（优先于 focus），保证计时器跟随实际点击的单词语言，
+  // 否则「全部」视图下始终给 order[0]（英语）计时，日语/韩语时长恒为 0。
+  function flushDuration(stop, lang) {
     const L = ui.learn;
     if (!L) return;
     pauseTimer();   // 把当前激活语言的已用时间并入 L.dur
@@ -1487,7 +1466,7 @@
     const delta = total - committed;
     if (delta > 0) { Store.addStudySeconds(delta); L.committedSec = total; }
     if (!stop) {
-      const fl = (L.focus === 'all') ? L.order[0] : (L.focus || L.order[0]);
+      const fl = lang || (L.focus === 'all' ? L.order[0] : (L.focus || L.order[0]));
       if (!L.langCheckedIn[fl]) startTimer(fl);
     }
   }
@@ -1505,7 +1484,8 @@
     Store.commit();
     if (ui.learn) {                         // 学习中：'all' 显示三语，否则只显示该语言
       ui.learn.focus = lang;
-      flushDuration(false);   // 提交上一语言已用时长，并继续计时当前语言
+      if (lang !== 'all') flushDuration(false, lang);   // 切到具体语言：计时器跟随新语言
+      else flushDuration(false);                         // 切到"全部"：保持默认（order[0]）
     }
     if (ui.view === 'review') buildReviewQueue();
     render();
@@ -1517,7 +1497,6 @@
     const info = LANGS[lang];
     const studied = ((L.pack && L.pack[lang]) || []).filter(x => L.added.has(x._bankId));
     const sec = langSeconds(lang);
-    const rec = Store.getCheckin();
 
     const body = `
       <div style="text-align:center;margin-bottom:6px">
@@ -1544,16 +1523,7 @@
             ${it.example ? `<div class="ws-ex">${esc(it.example)} <button class="spk" data-spk-text="${esc(it.example)}" data-spk-lang="${lang}" title="朗读">${icon('i-volume')}</button>${it.exampleTrans ? `<span class="ws-ext">${esc(it.exampleTrans)}</span>` : ''}</div>` : ''}
           </div>`).join('')}
       </div>
-
-      <div style="font-size:12px;font-weight:600;color:var(--text-2);margin:16px 0 8px">今天练了哪些？（听说读写）</div>
-      <div class="skill-grid">
-        ${SKILLS.map(s => `
-          <div class="skill-card ${rec[s.key] ? 'done' : ''}" data-skill="${s.key}">
-            <span class="skill-check">✓</span>
-            <span class="skill-emoji">${s.emoji}</span>
-            <span class="skill-name">${s.name}</span>
-          </div>`).join('')}
-      </div>`;
+    `;
 
     const foot = `
       <button class="btn btn-ghost" id="lcStats">查看统计</button>
@@ -1741,7 +1711,7 @@
     L.added.add(bankId);
     L.judged[bankId] = judge;
     persistLearn();   // 实时保存进度（词包 + 已学集合），保证「稍后再学」重开内容完全一致
-    flushDuration(false);   // 每次点击都把已用时长增量写入 checkins（累计学习统计的唯一来源）
+    flushDuration(false, item.lang);   // 每次点击都把已用时长增量写入 checkins，并让计时器跟随当前单词的语言
 
     // 当前语言 10 词学完 → 自动弹出完成打卡
     const cur = item.lang;
