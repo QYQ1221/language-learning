@@ -506,14 +506,24 @@ button, input, textarea, select {
 }
 .learn-read .word-tag { margin-left: 8px; }
 .tag-ai {
-  background: var(--accent);
-  color: #fff;
-  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  padding: 0 6px;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-weight: 700;
+  box-shadow: none;
 }
 .tag-me {
   background: var(--surface-hover);
   color: var(--text-2);
   border: 1px solid var(--border-strong);
+  padding: 0 6px;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-weight: 700;
+  box-shadow: none;
 }
 
 .tag {
