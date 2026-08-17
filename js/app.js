@@ -1424,8 +1424,8 @@
       };
       L.total = ((L.pack.en || []).length) + ((L.pack.ja || []).length) + ((L.pack.ko || []).length);
       ensureDur(L);
-      const focusLang = (L.focus === 'all') ? L.order[0] : (L.focus || L.order[0]);
-      startTimer(focusLang);
+      // 计时懒启动：不在这里直接 startTimer，避免“刚打开页面/切到后台”的空闲时间被计入学习时长。
+      // 计时将在用户首次点击单词或切换语言（flushDuration → startTimer）后才开始。
       render();
     } else {
       regenerateLearn();
@@ -1594,12 +1594,8 @@
       const items = (L.pack && L.pack[lg]) || [];
       L.langDone[lg] = items.length > 0 && items.every(x => L.added.has(x._bankId));
     });
-    // 当前 focus 已打卡则自动切到第一个未打卡语言；若全部打卡则不启动计时
-    const focusLang = (L.focus === 'all') ? L.order[0] : (L.focus || L.order[0]);
-    const targetLang = L.langCheckedIn[focusLang]
-      ? (L.order.find(lg => !L.langCheckedIn[lg]) || null)
-      : focusLang;
-    if (targetLang) startTimer(targetLang);
+    // 计时懒启动：不在生成时直接 startTimer（否则页面空闲/后台时间会被计入学习时长）。
+    // 计时将在用户首次点击单词或切换语言（flushDuration → startTimer）后开始。
     render();
     if (aiOn && langsToGen.length > 0) aiSupplement(L, { aiCount, perLang, diff });   // 仅给未打卡语言补 AI 词
   }
@@ -1647,20 +1643,25 @@
       .then(items => {
         if (!ui.learn || ui.learn !== L) return;          // 用户已切换 / 离开
         const seen = new Set();
-        let added = 0, saved = 0;
+        // 词库已有词的 lang|text 集合：AI 词若与词库（主题词/手动词/历史 AI 词）重复则跳过，避免重复入库与误打 AI 标记
+        const bankKeys = new Set();
+        Store.state.entries.forEach(e => { if (e && e.text) bankKeys.add((e.lang || '') + '|' + String(e.text).toLowerCase()); });
+        let added = 0, saved = 0, dupe = 0;
         items.forEach(it => {
           if (L.langCheckedIn[it.lang]) return;   // 已打卡语言不再追加 AI 词
           const arr = (L.pack && L.pack[it.lang]) || null;
           if (!arr) return;
-          const key = it.lang + '|' + it.text.toLowerCase();
-          if (seen.has(key)) return;
+          const t = String(it.text || '').toLowerCase();
+          const key = it.lang + '|' + t;
+          if (seen.has(key)) return;              // 本次 AI 批次内重复
           seen.add(key);
-          if (arr.some(x => (x.text || '').toLowerCase() === it.text.toLowerCase())) return;
-          const bid = 'ai:' + it.lang + ':' + it.text.toLowerCase().replace(/\s+/g, '_');
+          if (arr.some(x => (x.text || '').toLowerCase() === t)) { dupe++; return; }   // 与当前词包重复
+          if (bankKeys.has(key)) { dupe++; return; }   // 与词库已有词重复 → 不入包、不打 AI 标记
+          const bid = 'ai:' + it.lang + ':' + t.replace(/\s+/g, '_');
           it._bankId = bid;
           arr.push(it);
           added++;
-          // 自动加入词汇库（词库），按 bankId 去重避免重复
+          // 自动加入词汇库（词库），再按 bankId 兜底去重
           if (!Store.state.entries.some(e => e._bankId === bid)) {
             Store.addEntry({
               lang: it.lang, type: it.type || 'word', text: it.text,
@@ -1676,7 +1677,12 @@
         L.total = langs.reduce((a, lg) => a + ((L.pack && L.pack[lg]) || []).length, 0);
         L.aiLoading = false;
         persistLearn();   // 关键：把 AI 补充后的完整词包写回 learnSession，否则刷新/同步后 AI 词丢失
-        if (added) toast('AI 已补充 ' + added + ' 个词（已加入词库 ' + saved + '）', 'ok');
+        // 提示文案：明确区分「真正新增」与「与词库重复被跳过」，避免误导
+        let msg;
+        if (added > 0 && dupe > 0) msg = 'AI 新增 ' + added + ' 个词（已加入词库），' + dupe + ' 个与词库重复已跳过';
+        else if (added > 0) msg = 'AI 已生成 ' + added + ' 个新词，已全部加入词库';
+        else msg = dupe > 0 ? ('AI 生成的 ' + dupe + ' 个词都与词库重复，未新增') : 'AI 未返回可用词汇';
+        toast(msg, added > 0 ? 'ok' : 'warn');
         render();
       })
       .catch(err => {

@@ -165,11 +165,11 @@
     const langs = opts.langs || ['en', 'ja', 'ko'];
     const perLang = opts.perLang || 5;
     const existing = opts.existing || [];
-    const system = '你是三语（英语/日语/韩语）词汇教学助手。请根据用户选定的学习主题，生成贴合该主题的额外生词，补充进今日学习词包。要求：单词真实常用、与主题强相关、难度适中；日语给出假名读音并另给罗马音，韩语给出罗马音，英语给出 IPA 音标；例句简洁自然并附中文翻译；不要重复已给词。';
+    const system = '你是三语（英语/日语/韩语）词汇教学助手。请根据用户选定的学习主题，生成贴合该主题的额外生词，补充进今日学习词包。要求：单词真实常用、与主题强相关、难度适中；读音字段 reading 必须填写且不可为空——英语填 IPA 音标（用半角斜杠包裹，如 /ˈæp.əl/），日语填假名读音，韩语填罗马字（如 sagwa），不要填汉字或留空；日语另在 romaji 字段填罗马音，其他语言 romaji 留空字符串；例句简洁自然并附中文翻译；不要重复已给词。';
     const user = '学习主题：' + (themes || '日常通用') +
       '\n已生成词（请勿重复）：' + (existing.join('、') || '无') +
       '\n请为以下每种语言各生成 ' + perLang + ' 个生词：' + langs.join(', ') + '。' +
-      '\n只返回一个 JSON 数组，每个元素结构：{"lang":"en|ja|ko","text":"原文","reading":"读音","romaji":"罗马音（仅日语填写，其他语言留空字符串）","pos":"词性（如 n./v./adj.）","meaning":"中文释义","example":"目标语言例句","exampleTrans":"例句中文翻译","tags":["主题标签"]}。必须只输出这一个合法 JSON 数组，所有字符串用半角双引号(")，不要中文引号“”，不要任何解释文字，不要 markdown 代码块。';
+      '\n只返回一个 JSON 数组，每个元素结构：{"lang":"en|ja|ko","text":"原文","reading":"读音（英语 IPA 如 /ˈæp.əl/，日语假名如 しずか，韩语罗马字如 sagwa，必填不可空）","romaji":"罗马音（仅日语填写，其他语言留空字符串）","pos":"词性（如 n./v./adj.）","meaning":"中文释义","example":"目标语言例句","exampleTrans":"例句中文翻译","tags":["主题标签"]}。必须只输出这一个合法 JSON 数组，所有字符串用半角双引号(")，不要中文引号“”，不要任何解释文字，不要 markdown 代码块。';
     const data = await chat(system, user, { temperature: 0.85 });
     if (!Array.isArray(data)) return [];
     const LANGSET = { en: 1, ja: 1, ko: 1 };
