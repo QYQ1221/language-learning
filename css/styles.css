@@ -503,11 +503,11 @@ button, input, textarea, select {
   white-space: nowrap;
   flex-shrink: 0;
 }
-.learn-read .word-tag { margin-left: auto; }
+.learn-read .word-tag { margin-left: 8px; }
 .tag-ai {
-  background: var(--accent-soft);
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  background: var(--surface);
+  color: var(--text-2);
+  border: 1px solid var(--border-strong);
 }
 .tag-me {
   background: var(--surface-hover);
