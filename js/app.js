@@ -825,8 +825,8 @@
         </div>
         <div class="stat-card">
           <div class="stat-label">🎯 已学习</div>
-          <div class="stat-value">${s.learned}<span class="stat-unit">词</span></div>
-          <div class="stat-foot">已掌握 ${s.mastered} 词 · 掌握率 ${s.masterRate}%</div>
+          <div class="stat-value">${s.todayLearned}<span class="stat-unit">词</span></div>
+          <div class="stat-foot">累计已学 ${s.learned} 词 · 掌握率 ${s.masterRate}%</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">⏰ 待复习</div>
@@ -1643,10 +1643,9 @@
       .then(items => {
         if (!ui.learn || ui.learn !== L) return;          // 用户已切换 / 离开
         const seen = new Set();
-        // 词库已有词的 lang|text 集合：AI 词若与词库（主题词/手动词/历史 AI 词）重复则跳过，避免重复入库与误打 AI 标记
-        const bankKeys = new Set();
-        Store.state.entries.forEach(e => { if (e && e.text) bankKeys.add((e.lang || '') + '|' + String(e.text).toLowerCase()); });
-        let added = 0, saved = 0, dupe = 0;
+        // AI 生成的词若与词库（主题词/手动词/历史 AI 词）重复，仍加入学习卡（链接到已有条目，便于点击后正确标记已学），
+        // 但不重复入库、不打「AI 生成」新标记；只有真正首次出现的词才写库并打标记。
+        let added = 0, saved = 0, shownDup = 0;
         items.forEach(it => {
           if (L.langCheckedIn[it.lang]) return;   // 已打卡语言不再追加 AI 词
           const arr = (L.pack && L.pack[it.lang]) || null;
@@ -1655,14 +1654,17 @@
           const key = it.lang + '|' + t;
           if (seen.has(key)) return;              // 本次 AI 批次内重复
           seen.add(key);
-          if (arr.some(x => (x.text || '').toLowerCase() === t)) { dupe++; return; }   // 与当前词包重复
-          if (bankKeys.has(key)) { dupe++; return; }   // 与词库已有词重复 → 不入包、不打 AI 标记
+          if (arr.some(x => (x.text || '').toLowerCase() === t)) return;   // 与当前词包重复，跳过（避免同卡）
+          // 找词库中是否已存在同词（主题词/手动词/历史 AI 词）
+          const exist = Store.state.entries.find(e => e && e.text && (e.lang || '') === it.lang && String(e.text).toLowerCase() === t);
           const bid = 'ai:' + it.lang + ':' + t.replace(/\s+/g, '_');
-          it._bankId = bid;
+          it._bankId = exist ? (exist._bankId || bid) : bid;   // 已存在则复用其 bankId，点击后正确更新原条目
           arr.push(it);
           added++;
-          // 自动加入词汇库（词库），再按 bankId 兜底去重
-          if (!Store.state.entries.some(e => e._bankId === bid)) {
+          if (exist) {
+            shownDup++;   // 已在词库：仅作为学习卡呈现，不打 AI 标记、不重复入库
+          } else if (!Store.state.entries.some(e => e._bankId === bid)) {
+            // 自动加入词汇库（词库），再按 bankId 兜底去重
             Store.addEntry({
               lang: it.lang, type: it.type || 'word', text: it.text,
               reading: it.reading, pitch: it.pitch, romaji: it.romaji, hanja: it.hanja, pos: it.pos,
@@ -1677,11 +1679,12 @@
         L.total = langs.reduce((a, lg) => a + ((L.pack && L.pack[lg]) || []).length, 0);
         L.aiLoading = false;
         persistLearn();   // 关键：把 AI 补充后的完整词包写回 learnSession，否则刷新/同步后 AI 词丢失
-        // 提示文案：明确区分「真正新增」与「与词库重复被跳过」，避免误导
+        // 提示文案：明确区分「真正新增入库」与「已存在词库(仍作为学习卡)」，避免误导
         let msg;
-        if (added > 0 && dupe > 0) msg = 'AI 新增 ' + added + ' 个词（已加入词库），' + dupe + ' 个与词库重复已跳过';
-        else if (added > 0) msg = 'AI 已生成 ' + added + ' 个新词，已全部加入词库';
-        else msg = dupe > 0 ? ('AI 生成的 ' + dupe + ' 个词都与词库重复，未新增') : 'AI 未返回可用词汇';
+        if (added === 0) msg = 'AI 未返回可用词汇';
+        else if (saved > 0 && shownDup > 0) msg = 'AI 生成 ' + added + ' 个词：' + saved + ' 个新加入词库（带 AI 标记），' + shownDup + ' 个已在词库（已加入学习卡）';
+        else if (saved > 0) msg = 'AI 已生成 ' + added + ' 个新词，已全部加入词库';
+        else msg = 'AI 生成 ' + added + ' 个词都已在词库中（已加入学习卡）';
         toast(msg, added > 0 ? 'ok' : 'warn');
         render();
       })
@@ -1720,7 +1723,8 @@
         tags: [themeLabel].concat(item.tags || []),
         level: known ? 1 : 0,
         bankId: item._bankId,
-        learned: true
+        learned: true,
+        learnedAt: Date.now()
       });
     }
     L.added.add(bankId);

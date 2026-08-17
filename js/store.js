@@ -431,6 +431,8 @@
         if (!e.dateKey) e.dateKey = todayKey(e.createdAt || Date.now());
         // 兼容旧数据：新增 learned 标记；只有被复习过（reviews>0）的旧条目才视为已学，否则不算
         if (typeof e.learned !== 'boolean') e.learned = !!(e.srs && e.srs.reviews > 0);
+        // 学习(真实点击)时间：用于统计「今日已学习」；旧数据无记录则回退到创建时间
+        if (typeof e.learnedAt !== 'number') e.learnedAt = e.learned ? (e.createdAt || 0) : 0;
       });
 
       // 兼容旧版：checkins 由「按语言」改为「按技能(听说读写)全局」
@@ -845,6 +847,7 @@
         groupId: (data.groupId || '').trim(),
         level: typeof data.level === 'number' ? data.level : 0,
         learned: data.learned === true,   // 是否已被用户主动学习过；只有点过「认识/不认识」才置 true
+        learnedAt: data.learned === true ? (data.learnedAt || now) : 0,   // 真实学习(点击)时间，用于「今日已学习」
         createdAt: now,
         updatedAt: now,
         dateKey: todayKey(now),
@@ -880,6 +883,7 @@
           groupId: (d.groupId || '').trim(),
           level: 0,
           learned: d.learned === true,
+          learnedAt: d.learned === true ? (d.learnedAt || now) : 0,
           createdAt: now,
           updatedAt: now,
           dateKey: todayKey(now),
@@ -895,6 +899,10 @@
       const e = this.state.entries.find(x => x.id === id);
       if (!e) return null;
       Object.assign(e, patch, { updatedAt: Date.now() });
+      // 标记为已学(真实点击)时记录学习时刻，用于统计「今日已学习」
+      if (patch.learned === true) {
+        e.learnedAt = (typeof patch.learnedAt === 'number' && patch.learnedAt) ? patch.learnedAt : Date.now();
+      }
       if (patch.tags !== undefined && !Array.isArray(patch.tags)) {
         e.tags = parseTags(patch.tags);
       }
@@ -1137,7 +1145,7 @@
         totalEntries: allEntries.length,
         todayAdded: allEntries.filter(e => e.dateKey === today).length,
         learned: learnedEntries.length,
-        todayLearned: learnedEntries.filter(e => e.dateKey === today).length,
+        todayLearned: learnedEntries.filter(e => e.learnedAt && todayKey(e.learnedAt) === today).length,
         mastered: byLevel[3],
         masterRate: learnedEntries.length ? Math.round((byLevel[3] / learnedEntries.length) * 100) : 0,
         due: this.dueEntries(lang).length,
