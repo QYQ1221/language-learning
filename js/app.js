@@ -819,9 +819,9 @@
           <div class="stat-foot">完成打卡 ${s.completedDays} 天</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">📚 新增词汇</div>
-          <div class="stat-value">${s.totalEntries}<span class="stat-unit">条</span></div>
-          <div class="stat-foot">今日新增 ${s.todayAdded} 条</div>
+          <div class="stat-label">📚 今日新增</div>
+          <div class="stat-value">${s.todayAdded}<span class="stat-unit">条</span></div>
+          <div class="stat-foot">累计新增 ${s.totalEntries} 条</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">🎯 已学习</div>
