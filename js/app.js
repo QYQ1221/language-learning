@@ -1008,6 +1008,8 @@
 
   function switchView(v) {
     ui.view = v;
+    // 复习 / 历史 / 统计 默认以「全部」语言打开
+    if (v === 'review' || v === 'history' || v === 'stats') ui.lang = 'all';
     if (v === 'review') buildReviewQueue();
     render();
     $('#main').scrollTop = 0;
