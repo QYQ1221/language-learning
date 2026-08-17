@@ -246,8 +246,9 @@
       // GitHub API 限流中：跳过请求，避免进一步消耗配额（_rateLimitedUntil 由上次 403 设置）
       if (this._rateLimitedUntil && Date.now() < this._rateLimitedUntil) { this._lastErrorType = 'ratelimit'; return false; }
       // 防丢兜底：本机曾有过数据（最佳快照非空）却要上传空状态 → 拒绝，避免把云端所有设备一并清空。
-      // 仅用户主动清空（_allowEmptySync=true）时才放行。
-      if (!_allowEmptySync) {
+      // 仅用户主动清空（_allowEmptySync=true 或 state.clearedAt 有标记）时才放行。
+      const stateCleared = state && Number(state.clearedAt) > 0;
+      if (!_allowEmptySync && !stateCleared) {
         const n = (state && state.entries) ? state.entries.length : 0;
         if (n === 0 && readBestN() > 0) {
           this._lastErrorType = 'emptyguard';
@@ -365,6 +366,8 @@
         ai: { enabled: false, baseUrl: '', apiKey: '', model: '' }  // AI 辅助（浏览器直连 OpenAI 兼容接口）
       },
       learnSession: null,    // 今日学习会话（持久化 + 可同步）：{ date, themes, salt, focus, order, idx, langDone, langCheckedIn, dur, added[], judged }
+      clearedAt: 0,          // 最近一次用户主动清空数据的时间戳（同步用：其他设备拉到该标记时也执行清空）
+      clearedAck: 0,         // 本机已确认处理的清空时间戳（防止重复清空）
       updatedAt: Date.now()
     };
   }
@@ -393,13 +396,15 @@
       }
       // 防丢兜底：主数据被同步意外清空（条目/打卡/会话全空），但「最佳快照」仍有数据 → 自动从快照恢复，
       // 避免一次同步抖动就把全部学习记录抹掉且无法找回。
+      // 例外：如果 clearedAck >= clearedAt > 0，说明用户已主动清空过数据，不应从快照恢复已删数据。
       const best = readBestState();
       const mainEmpty = (!this.state.entries || this.state.entries.length === 0)
         && (!this.state.checkins || Object.keys(this.state.checkins).length === 0)
         && !this.state.learnSession;
+      const userCleared = (Number(this.state.clearedAck) || 0) >= (Number(this.state.clearedAt) || 0) && (Number(this.state.clearedAt) || 0) > 0;
       const bestHas = best && Array.isArray(best.entries)
         && (best.entries.length > 0 || (best.checkins && Object.keys(best.checkins).length > 0));
-      if (mainEmpty && bestHas) {
+      if (mainEmpty && bestHas && !userCleared) {
         this.state = Object.assign(defaultState(), best);
         this.state.settings = Object.assign(defaultState().settings, best.settings || {});
         this._recoveredFromBest = true;
@@ -471,6 +476,18 @@
      * - 打卡：布尔 OR，分钟取最大。
      */
     _mergeForCloud(remote) {
+      // 远端执行了主动清空（clearedAt 比本机 clearedAck 新）→ 本机也清空，不做并集
+      const remoteCleared = Number(remote && remote.clearedAt) || 0;
+      const localAck = Number(this.state.clearedAck) || 0;
+      if (remoteCleared > localAck) {
+        try { if (global.localStorage) global.localStorage.removeItem(BEST_KEY); } catch (e) {}
+        const cleared = defaultState();
+        cleared.clearedAt = remoteCleared;
+        cleared.clearedAck = remoteCleared;
+        cleared.settings = Object.assign(defaultState().settings, this.state.settings || {});
+        this._fixLearnSession(cleared);
+        return cleared;
+      }
       const base = Object.assign(defaultState(), remote);
       base.settings = Object.assign(defaultState().settings, remote.settings || {});
       const remoteIds = new Set((remote.entries || []).map(e => e.id));
@@ -515,6 +532,21 @@
     _applyRemote(remoteState) {
       if (!remoteState || typeof remoteState !== 'object') return false;
       if (remoteState.updatedAt && this.state.updatedAt === remoteState.updatedAt) return false; // 回声去重
+
+      // 远端执行了主动清空（clearedAt 比本机 clearedAck 新）→ 本机也清空，不做并集合并
+      const remoteCleared = Number(remoteState.clearedAt) || 0;
+      const localAck = Number(this.state.clearedAck) || 0;
+      if (remoteCleared > localAck) {
+        this.state.entries = [];
+        this.state.checkins = {};
+        this.state.learnSession = null;
+        this.state.clearedAt = remoteCleared;
+        this.state.clearedAck = remoteCleared;
+        try { if (global.localStorage) global.localStorage.removeItem(BEST_KEY); } catch (e) {}
+        this._mirrorLocal();
+        return true;
+      }
+
       const keepToken = this.state.settings.gistToken;   // 远端 Gist 不含 token，保留本地凭证避免刷新后重连失败
       const keepKey = this.state.settings.gistKey;
       const keepAiKey = (this.state.settings.ai && this.state.settings.ai.apiKey) || ''; // AI Key 仅存本机，不被远端（已剥离）覆盖

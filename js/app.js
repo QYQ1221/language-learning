@@ -2262,6 +2262,8 @@
                 Store.state.entries = [];
                 Store.state.checkins = {};
                 Store.state.learnSession = null;   // 清空今日学习会话，避免清完又被恢复的会话带回到选心情页之外
+                Store.state.clearedAt = Date.now();   // 标记主动清空，让其他设备同步时也执行清空
+                Store.state.clearedAck = Store.state.clearedAt;   // 本机已确认
                 Store.state.updatedAt = Date.now();
                 // 已开启 GitHub 同步时：先把「空数据」覆盖到云端 Gist，使手机/电脑等所有已同步设备
                 // 下次拉取也会变成空，否则云端仍保留旧记录，清完重新打开会从云端把那 4 天拉回来。
