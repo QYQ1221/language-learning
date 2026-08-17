@@ -941,15 +941,15 @@
     stats:   ['学习统计', '进度与坚持度一览']
   };
 
-  // 顶栏语言筛选：高亮跟随当前视图语言焦点，在学习/复习/历史页显示
+  // 顶栏语言筛选：学习页高亮当前学习焦点，复习/历史/统计页高亮全局筛选语言
   function syncLangTabs() {
-    const inLearn = !!ui.learn;
-    const show = inLearn || ui.view === 'review' || ui.view === 'history';
-    const active = ui.view === 'review' ? ui.lang : (inLearn ? (ui.learn.focus || 'en') : ui.lang);
+    const learnView = ui.view === 'capture';
+    const show = learnView || ui.view === 'review' || ui.view === 'history' || ui.view === 'stats';
+    const active = learnView ? ((ui.learn && ui.learn.focus) || 'en') : ui.lang;
     // 同步所有语言标签（含顶部与历史页内的副本），高亮当前语言
     $$('.lang-tab').forEach(b => b.classList.toggle('active', b.dataset.lang === active));
     const top = $('#langTabs');
-    if (top) top.style.display = show ? '' : 'none';  // 顶栏语言筛选在「今日录入（未学习）」时隐藏；移动端历史页由 CSS 收起，改用页面内副本
+    if (top) top.style.display = show ? '' : 'none';
   }
 
   function render() {
