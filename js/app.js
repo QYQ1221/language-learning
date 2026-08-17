@@ -831,7 +831,7 @@
         <div class="stat-card">
           <div class="stat-label">⏰ 待复习</div>
           <div class="stat-value" style="${s.due > 0 ? 'color:var(--danger)' : ''}">${s.due}</div>
-          <div class="stat-foot">累计学习 ${fmtDuration(s.totalStudySeconds)}</div>
+          <div class="stat-foot">累计学习 ${s.totalMinutes} 分钟</div>
         </div>
       </div>
 
@@ -1529,7 +1529,7 @@
         <span class="badge badge-neutral">⏱ 本次学习时长</span>
         <b style="font-size:18px">${fmtDuration(sec)}</b>
       </div>
-      <div style="font-size:12px;color:var(--text-3);text-align:center;margin-bottom:8px">今日累计学习 ${fmtDuration(todayStudySeconds())}</div>
+      <div style="font-size:12px;color:var(--text-3);text-align:center;margin-bottom:8px">今日累计学习 ${fmtDuration(totalSeconds())}</div>
 
       <div style="font-size:12px;font-weight:600;color:var(--text-2);margin:14px 0 8px">今日词汇总结（${esc(info.name)}）</div>
       <div class="word-summary">
