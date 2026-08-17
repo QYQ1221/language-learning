@@ -831,7 +831,7 @@
         <div class="stat-card">
           <div class="stat-label">⏰ 待复习</div>
           <div class="stat-value" style="${s.due > 0 ? 'color:var(--danger)' : ''}">${s.due}</div>
-          <div class="stat-foot">累计学习 ${s.totalMinutes} 分钟</div>
+          <div class="stat-foot">累计学习 ${fmtDuration(s.totalStudySeconds)}</div>
         </div>
       </div>
 
@@ -1468,6 +1468,15 @@
     ensureDur(L);
     return ['en', 'ja', 'ko'].reduce((a, lg) => a + langSeconds(lg), 0);
   }
+  // 今日累计学习秒数（与统计页口径一致）：已持久化的今日 studySeconds + 手动 minutes + 当前未提交的活跃计时段。
+  // 注意：不重复加 L.dur，因为 L.dur 已被 flushDuration 计入今日 checkin.studySeconds，重复加会翻倍。
+  function todayStudySeconds() {
+    const rec = Store.getCheckin();   // 默认今日
+    let s = (Number(rec.studySeconds) || 0) + (Number(rec.minutes) || 0) * 60;
+    const L = ui.learn;
+    if (L && L.activeLang && L.activeStart) s += Math.floor((Date.now() - L.activeStart) / 1000);
+    return s;
+  }
   // 把已用学习时长增量写入 checkins（统计「累计学习」的唯一来源），并继续/停止计时
   function flushDuration(stop) {
     const L = ui.learn;
@@ -1520,7 +1529,7 @@
         <span class="badge badge-neutral">⏱ 本次学习时长</span>
         <b style="font-size:18px">${fmtDuration(sec)}</b>
       </div>
-      <div style="font-size:12px;color:var(--text-3);text-align:center;margin-bottom:8px">今日累计学习 ${fmtDuration(totalSeconds())}</div>
+      <div style="font-size:12px;color:var(--text-3);text-align:center;margin-bottom:8px">今日累计学习 ${fmtDuration(todayStudySeconds())}</div>
 
       <div style="font-size:12px;font-weight:600;color:var(--text-2);margin:14px 0 8px">今日词汇总结（${esc(info.name)}）</div>
       <div class="word-summary">

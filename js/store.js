@@ -1129,10 +1129,13 @@
 
       // 累计学习时长
       let totalMinutes = 0;
+      let totalStudySeconds = 0;   // 原始秒数（不提前 floor 到分钟，避免短学习被吞成 0 且跨天不累计）
       for (const dk in this.state.checkins) {
         const c = this.state.checkins[dk] || {};
-        totalMinutes += Number(c.minutes) || 0;
-        totalMinutes += Math.floor((Number(c.studySeconds) || 0) / 60);
+        const mins = Number(c.minutes) || 0;
+        const secs = Number(c.studySeconds) || 0;
+        totalMinutes += mins + Math.floor(secs / 60);
+        totalStudySeconds += mins * 60 + secs;
       }
 
       // 完成打卡天数：今日学习三语词包全部完成并打卡
@@ -1150,6 +1153,7 @@
         masterRate: learnedEntries.length ? Math.round((byLevel[3] / learnedEntries.length) * 100) : 0,
         due: this.dueEntries(lang).length,
         totalMinutes,
+        totalStudySeconds,
         // 辅助/图表数据
         byLang,
         byLevel,
