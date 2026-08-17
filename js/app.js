@@ -38,6 +38,18 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // 日语罗马音兜底：优先用存储值，否则由假名读音实时生成
+  // （旧主题词、已入库但无 romaji 字段的词也能显示罗马音而非「X型」）
+  function jaRomaji(e) {
+    if (!e || e.lang !== 'ja') return '';
+    const stored = (e.romaji || '').trim();
+    if (stored) return stored;
+    if (e.reading) {
+      try { return LangThemes.kanaToRomaji((e.reading || '').trim()); } catch (err) { return ''; }
+    }
+    return '';
+  }
+
   function icon(id, cls) {
     return `<svg class="${cls || ''}"><use href="#${id}"/></svg>`;
   }
@@ -382,7 +394,7 @@
           <div class="learn-read">
             ${it.reading ? `<span>${esc(it.reading)}</span>` : ''}
             ${it.lang === 'ja'
-              ? (it.romaji ? `<span class="learn-pitch">${esc(it.romaji)}</span>` : (it.pitch ? `<span class="learn-pitch">${esc(it.pitch)}型</span>` : ''))
+              ? (jaRomaji(it) ? `<span class="learn-pitch">${esc(jaRomaji(it))}</span>` : (it.pitch ? `<span class="learn-pitch">${esc(it.pitch)}型</span>` : ''))
               : (it.pitch ? `<span class="learn-pitch">${esc(it.pitch)}型</span>` : '')}
             ${it.hanja ? `<span class="learn-hanja">［${esc(it.hanja)}］</span>` : ''}
             ${tag}
@@ -563,7 +575,7 @@
             <span class="entry-text">${esc(e.text)}</span>
             ${spk(e.text, e.lang)}
             ${e.reading ? `<span class="entry-reading">${esc(e.reading)}</span>` : ''}
-            ${e.pitch ? `<span class="entry-pitch">${esc(e.pitch)}型</span>` : ''}
+            ${e.lang === 'ja' ? (jaRomaji(e) ? `<span class="entry-pitch">${esc(jaRomaji(e))}</span>` : (e.pitch ? `<span class="entry-pitch">${esc(e.pitch)}型</span>` : '')) : (e.pitch ? `<span class="entry-pitch">${esc(e.pitch)}型</span>` : '')}
             ${e.hanja ? `<span class="entry-reading">［${esc(e.hanja)}］</span>` : ''}
           </div>
           ${e.meaning ? `<div class="entry-meaning">${esc(e.meaning)}</div>` : ''}
@@ -745,7 +757,7 @@
 
         <div class="flashcard" id="flashcard">
           <div class="flash-front">${esc(e.text)} <button class="spk" data-spk-text="${esc(e.text)}" data-spk-lang="${e.lang}" title="朗读单词">${icon('i-volume')}</button></div>
-          ${revealed && e.reading ? `<div class="flash-reading">${esc(e.reading)}${e.lang === 'ja' ? (e.romaji ? ` ・${esc(e.romaji)}` : (e.pitch ? ` ・${esc(e.pitch)}型` : '')) : (e.pitch ? ` ・${esc(e.pitch)}型` : '')}</div>` : ''}
+          ${revealed && e.reading ? `<div class="flash-reading">${esc(e.reading)}${e.lang === 'ja' ? (jaRomaji(e) ? ` ・${esc(jaRomaji(e))}` : (e.pitch ? ` ・${esc(e.pitch)}型` : '')) : (e.pitch ? ` ・${esc(e.pitch)}型` : '')}</div>` : ''}
 
           ${revealed ? `
             <div class="flash-back">
@@ -1723,7 +1735,9 @@
   }
 
   function openManualAdd() {
-    ui.manual = { cn: '', lang: 'en', f: {} };
+    // 默认语言跟随当前学习页：在日语页点「自己加词」时，弹窗默认停在日语 tab
+    const defLang = (ui.lang === 'en' || ui.lang === 'ja' || ui.lang === 'ko') ? ui.lang : 'en';
+    ui.manual = { cn: '', lang: defLang, f: {} };
     ['en', 'ja', 'ko'].forEach(l => {
       ui.manual.f[l] = { text: '', reading: '', romaji: '', extra: '', meaning: '', example: '', exampleTrans: '', tags: '', pos: '' };
     });
@@ -1911,7 +1925,7 @@
             const patch = {
               lang: l, type: 'word', text,
               reading: (f.reading || '').trim(),
-              romaji: (f.romaji || '').trim(),
+              romaji: (f.romaji || '').trim() || (l === 'ja' && f.reading ? LangThemes.kanaToRomaji(f.reading.trim()) : ''),
               meaning, example: (f.example || '').trim(),
               exampleTrans: (f.exampleTrans || '').trim(),
               pos: (f.pos || '').trim(),
