@@ -495,15 +495,25 @@ button, input, textarea, select {
   align-items: center;
   gap: 3px;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: .3px;
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: 1px 6px;
+  border-radius: 4px;
   line-height: 1.6;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .learn-read .word-tag { margin-left: auto; }
-.tag-ai { background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #ffffff)); color: #fff; }
-.tag-me { background: var(--en-soft); color: var(--en); border: 1px solid color-mix(in srgb, var(--en) 30%, var(--border)); }
+.tag-ai {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+.tag-me {
+  background: var(--surface-hover);
+  color: var(--text-3);
+  border: 1px solid var(--border-strong);
+}
 
 .tag {
   display: inline-block;

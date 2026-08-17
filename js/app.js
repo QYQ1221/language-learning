@@ -382,8 +382,8 @@
     const jLabel = j === 'know' ? '（认识）' : j === 'unknown' ? '（不认识）' : '';
     const isAI = !!(it._bankId && String(it._bankId).indexOf('ai:') === 0);
     const isMe = !!it.isManual;
-    const tag = isAI ? '<span class="word-tag tag-ai">✨ AI 生成</span>'
-      : isMe ? '<span class="word-tag tag-me">✍ 自己加词</span>' : '';
+    const tag = isAI ? '<span class="word-tag tag-ai">AI</span>'
+      : isMe ? '<span class="word-tag tag-me">自建</span>' : '';
     const spk = (txt, lang) => txt
       ? `<button class="spk" data-spk-text="${esc(txt)}" data-spk-lang="${lang}" title="朗读">${icon('i-volume')}</button>`
       : '';
